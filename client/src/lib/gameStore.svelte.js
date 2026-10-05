@@ -1,15 +1,23 @@
 import { initRealtime, disconnectRealtime } from './realtime';
+import { audio } from './audio';
 
 export class GameStore {
   playerName = $state(localStorage.getItem('ut_player_name') || '');
+  playerAvatar = $state(localStorage.getItem('ut_player_avatar') || '');
   playerId = $state(localStorage.getItem('ut_player_id') || '');
   roomCode = $state(localStorage.getItem('ut_room_code') || '');
   roomState = $state(null);
-  timeLeft = $state(10);
   errorMessage = $state(null);
   loading = $state(false);
+  rolling = $state(false);
   leaderboard = $state([]);
   publicRooms = $state([]);
+
+  // Posisi pion animasi step-by-step: playerId -> displaySquare
+  pawnPositions = $state({});
+
+  // Hasil lemparan terakhir yang baru saja di-roll
+  latestRollInfo = $state(null);
 
   isHost = $derived(
     Boolean(this.roomState && this.playerId && this.roomState.hostId === this.playerId)
@@ -19,15 +27,14 @@ export class GameStore {
     this.roomState?.players?.find((p) => p.id === this.playerId) || null
   );
 
-  hasSubmitted = $derived(
-    Boolean(this.me?.hasSubmitted)
+  myChallenge = $derived(
+    this.me?.currentChallenge || null
   );
 
   async init() {
     this.fetchPublicRooms();
     this.fetchLeaderboard();
 
-    // Reconnect ke room jika ada state di localStorage
     if (this.roomCode && this.playerId) {
       await this.refreshRoom();
     }
@@ -38,6 +45,49 @@ export class GameStore {
     setTimeout(() => {
       if (this.errorMessage === msg) this.errorMessage = null;
     }, 4500);
+  }
+
+  setAvatar(dataUrl) {
+    this.playerAvatar = dataUrl;
+    localStorage.setItem('ut_player_avatar', dataUrl);
+  }
+
+  syncInitialPawnPositions(players = []) {
+    players.forEach((p) => {
+      if (this.pawnPositions[p.id] === undefined) {
+        this.pawnPositions[p.id] = p.currentSquare || 1;
+      }
+    });
+  }
+
+  // Animasi pion bergerak dari block ke block (hop by hop)
+  async animatePawnMovement(playerId, move, roll) {
+    if (!move) return;
+    const path = move.path || [];
+
+    // Step-by-step hopping
+    for (let i = 0; i < path.length; i++) {
+      await new Promise((r) => setTimeout(r, 180));
+      this.pawnPositions[playerId] = path[i];
+      audio.playStep(i);
+    }
+
+    // Tangga atau Ular
+    if (move.isLadder) {
+      await new Promise((r) => setTimeout(r, 260));
+      audio.playLadder();
+      this.pawnPositions[playerId] = move.targetSquare;
+    } else if (move.isSnake) {
+      await new Promise((r) => setTimeout(r, 260));
+      audio.playSnake();
+      this.pawnPositions[playerId] = move.targetSquare;
+    } else {
+      this.pawnPositions[playerId] = move.targetSquare;
+    }
+
+    if (move.finished) {
+      audio.playWin();
+    }
   }
 
   async fetchLeaderboard() {
@@ -63,14 +113,24 @@ export class GameStore {
   }
 
   setupRealtime(code) {
-    initRealtime(code, (event, data) => {
-      if (data?.state) {
-        this.roomState = data.state;
-        if (typeof data.state.timeLeft === 'number') {
-          this.timeLeft = data.state.timeLeft;
+    initRealtime(code, async (event, data) => {
+      if (event === 'player_moved') {
+        const { playerId, move, roll, state } = data;
+        if (state) {
+          this.roomState = state;
         }
-      } else if (event === 'timer_tick' && typeof data?.timeLeft === 'number') {
-        this.timeLeft = data.timeLeft;
+        if (move) {
+          await this.animatePawnMovement(playerId, move, roll);
+        }
+      } else if (event === 'game_finished') {
+        if (data.state) this.roomState = data.state;
+        if (data.lastMove?.move) {
+          await this.animatePawnMovement(data.lastMove.playerId, data.lastMove.move, data.lastMove.roll);
+        }
+        audio.playWin();
+      } else if (data?.state) {
+        this.roomState = data.state;
+        this.syncInitialPawnPositions(data.state.players || []);
       }
     });
   }
@@ -82,7 +142,10 @@ export class GameStore {
       const res = await fetch('/api/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: cleanName }),
+        body: JSON.stringify({
+          name: cleanName,
+          avatar: this.playerAvatar || null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal membuat room');
@@ -91,6 +154,7 @@ export class GameStore {
       this.playerId = data.playerId;
       this.roomCode = data.roomCode;
       this.roomState = data.state;
+      this.syncInitialPawnPositions(data.state.players || []);
 
       localStorage.setItem('ut_player_name', this.playerName);
       localStorage.setItem('ut_player_id', this.playerId);
@@ -117,7 +181,10 @@ export class GameStore {
       const res = await fetch(`/api/rooms/${cleanCode}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: cleanName }),
+        body: JSON.stringify({
+          name: cleanName,
+          avatar: this.playerAvatar || null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal masuk room');
@@ -126,6 +193,7 @@ export class GameStore {
       this.playerId = data.playerId;
       this.roomCode = data.roomCode;
       this.roomState = data.state;
+      this.syncInitialPawnPositions(data.state.players || []);
 
       localStorage.setItem('ut_player_name', this.playerName);
       localStorage.setItem('ut_player_id', this.playerId);
@@ -149,6 +217,7 @@ export class GameStore {
       }
       const data = await res.json();
       this.roomState = data.state;
+      this.syncInitialPawnPositions(data.state.players || []);
       this.setupRealtime(this.roomCode);
     } catch (err) {
       console.error(err);
@@ -166,24 +235,47 @@ export class GameStore {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal memulai game');
       this.roomState = data.state;
+      this.syncInitialPawnPositions(data.state.players || []);
+      // Reset positions to 1
+      for (const p of data.state.players || []) {
+        this.pawnPositions[p.id] = 1;
+      }
     } catch (err) {
       this.setError(err.message);
     }
   }
 
-  async submitInput(num) {
-    if (!this.roomCode || !this.playerId) return;
+  async submitRoll(inputNumber) {
+    if (!this.roomCode || !this.playerId || this.rolling) return;
+    this.rolling = true;
+    audio.playRoll();
+
     try {
       const res = await fetch(`/api/rooms/${this.roomCode}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId: this.playerId, input: num }),
+        body: JSON.stringify({ playerId: this.playerId, input: inputNumber }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal submit angka');
-      if (data.state) this.roomState = data.state;
+
+      this.latestRollInfo = {
+        roll: data.roll,
+        move: data.move,
+      };
+
+      if (data.state) {
+        this.roomState = data.state;
+      }
+
+      // Animasi pion saya sendiri langsung berjalan
+      if (data.move) {
+        await this.animatePawnMovement(this.playerId, data.move, data.roll);
+      }
     } catch (err) {
       this.setError(err.message);
+    } finally {
+      this.rolling = false;
     }
   }
 
@@ -202,6 +294,8 @@ export class GameStore {
     disconnectRealtime();
     this.roomCode = '';
     this.roomState = null;
+    this.latestRollInfo = null;
+    this.pawnPositions = {};
     localStorage.removeItem('ut_room_code');
     this.fetchPublicRooms();
   }

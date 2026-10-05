@@ -1,7 +1,11 @@
 <script>
   import { getSquareCoordinates, LADDERS, SNAKES } from '../game/Board';
 
-  let { players = [], myId = '' } = $props();
+  let {
+    players = [],
+    myId = '',
+    pawnPositions = {},
+  } = $props();
 
   // Helper koordinat cell center di viewBox 1000x1000
   function getSquareCenter(sq) {
@@ -19,7 +23,7 @@
   const pawnsBySquare = $derived.by(() => {
     const map = new Map();
     players.forEach((p) => {
-      const sq = p.currentSquare || 1;
+      const sq = pawnPositions[p.id] !== undefined ? pawnPositions[p.id] : (p.currentSquare || 1);
       if (!map.has(sq)) map.set(sq, []);
       map.get(sq).push(p);
     });
@@ -119,6 +123,13 @@
       <filter id="pawnGlow" x="-50%" y="-50%" width="200%" height="200%">
         <feDropShadow dx="0" dy="4" stdDeviation="4" flood-opacity="0.5" />
       </filter>
+
+      <!-- Player Avatar Clip Paths -->
+      {#each players as p}
+        <clipPath id="avatar-clip-{p.id}">
+          <circle cx="0" cy="0" r="22" />
+        </clipPath>
+      {/each}
     </defs>
 
     <!-- 10x10 Grid Squares -->
@@ -218,7 +229,6 @@
     <!-- Tangga (Ladders) Layer -->
     {#each ladderPaths as ladder}
       <g opacity="0.92">
-        <!-- Rel Tangga -->
         <line
           x1={ladder.rail1.x1}
           y1={ladder.rail1.y1}
@@ -237,7 +247,6 @@
           stroke-width="8"
           stroke-linecap="round"
         />
-        <!-- Anak Tangga (Rungs) -->
         {#each ladder.rungs as rung}
           <line
             x1={rung.x1}
@@ -255,7 +264,6 @@
     <!-- Ular (Snakes) Layer -->
     {#each snakePaths as snake}
       <g opacity="0.95">
-        <!-- Bayangan Ular -->
         <path
           d={snake.d}
           fill="none"
@@ -265,7 +273,6 @@
           opacity="0.3"
           transform="translate(4, 6)"
         />
-        <!-- Tubuh Ular -->
         <path
           d={snake.d}
           fill="none"
@@ -273,7 +280,6 @@
           stroke-width="16"
           stroke-linecap="round"
         />
-        <!-- Strip Belang Ular -->
         <path
           d={snake.d}
           fill="none"
@@ -283,7 +289,6 @@
           stroke-linecap="round"
           opacity="0.8"
         />
-        <!-- Kepala Ular -->
         <circle
           cx={snake.headPos.x}
           cy={snake.headPos.y}
@@ -301,7 +306,7 @@
 
     <!-- Pion Pemain (Pawn Layer) -->
     {#each players as player}
-      {@const sq = player.currentSquare || 1}
+      {@const sq = pawnPositions[player.id] !== undefined ? pawnPositions[player.id] : (player.currentSquare || 1)}
       {@const center = getSquareCenter(sq)}
       {@const offset = getPawnOffset(player, sq)}
       {@const cx = center.x + offset.dx}
@@ -309,69 +314,86 @@
       {@const isMe = player.id === myId}
       {@const initial = (player.name || 'P').charAt(0).toUpperCase()}
 
+      <!-- Animasi posisi per block dengan CSS transform -->
       <g
-        class="transition-all duration-700 ease-out"
-        style="transform-origin: {cx}px {cy}px;"
+        class="transition-all duration-200 ease-out"
+        style="transform: translate({cx}px, {cy}px);"
         filter="url(#pawnGlow)"
       >
-        <!-- Highlight Lingkaran untuk Pemain Saya -->
+        <!-- Highlight Lingkaran Berputar untuk Pemain Saya -->
         {#if isMe}
           <circle
-            {cx}
-            {cy}
-            r="26"
+            cx="0"
+            cy="0"
+            r="28"
             fill="none"
             stroke="#38bdf8"
             stroke-width="3"
-            stroke-dasharray="6 4"
+            stroke-dasharray="8 6"
             class="animate-spin"
-            style="transform-origin: {cx}px {cy}px; animation-duration: 6s;"
+            style="animation-duration: 5s;"
           />
         {/if}
 
         <!-- Tubuh Pion -->
         <circle
-          {cx}
-          {cy}
-          r="20"
+          cx="0"
+          cy="0"
+          r="22"
           fill={player.color}
-          stroke={isMe ? '#ffffff' : '#1e293b'}
+          stroke={isMe ? '#ffffff' : '#0f172a'}
           stroke-width={isMe ? '3' : '2'}
         />
 
-        <!-- Inisial Nama di Tengah Pion -->
-        <text
-          x={cx}
-          y={cy + 6}
-          fill="#ffffff"
-          font-size="16"
-          font-weight="800"
-          text-anchor="middle"
-          font-family="system-ui, sans-serif"
-        >
-          {initial}
-        </text>
+        <!-- Foto Avatar Kustom ATAU Inisial Huruf -->
+        {#if player.avatar}
+          <image
+            href={player.avatar}
+            x="-22"
+            y="-22"
+            width="44"
+            height="44"
+            clip-path="url(#avatar-clip-{player.id})"
+            preserveAspectRatio="xMidYMid slice"
+          />
+        {:else}
+          <text
+            x="0"
+            y="7"
+            fill="#ffffff"
+            font-size="18"
+            font-weight="800"
+            text-anchor="middle"
+            font-family="system-ui, sans-serif"
+          >
+            {initial}
+          </text>
+        {/if}
 
-        <!-- Badge Nama Kecil di Bawah Pion -->
-        <rect
-          x={cx - 32}
-          y={cy + 22}
-          width="64"
-          height="16"
-          rx="4"
-          fill="#0f172a"
-          opacity="0.85"
-        />
-        <text
-          x={cx}
-          y={cy + 34}
-          fill="#f8fafc"
-          font-size="10"
-          font-weight="700"
-          text-anchor="middle"
-        >
-          {player.name.slice(0, 7)}
-        </text>
+        <!-- Label Nama Pemain -->
+        <g transform="translate(0, 32)">
+          <rect
+            x="-35"
+            y="-8"
+            width="70"
+            height="18"
+            rx="5"
+            fill="#0f172a"
+            opacity="0.88"
+            stroke="#334155"
+            stroke-width="1"
+          />
+          <text
+            x="0"
+            y="5"
+            fill="#f8fafc"
+            font-size="10"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            {player.name.slice(0, 8)}
+          </text>
+        </g>
       </g>
     {/each}
   </svg>

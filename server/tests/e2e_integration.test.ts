@@ -13,7 +13,7 @@ describe("E2E Server & API Integration", () => {
     const res = await app.request("/");
     expect(res.status).toBe(200);
     const html = await res.text();
-    expect(html).toContain("Ular Tangga Multiplayer");
+    expect(html).toContain("Ular Tangga");
   });
 
   it("handles room lifecycle: create, join, and start", async () => {
@@ -21,7 +21,7 @@ describe("E2E Server & API Integration", () => {
     const createRes = await app.request("/api/rooms", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Salis" }),
+      body: JSON.stringify({ name: "Salis", avatar: "data:image/jpeg;base64,sample" }),
     });
     expect(createRes.status).toBe(200);
     const createData = await createRes.json();
@@ -53,23 +53,19 @@ describe("E2E Server & API Integration", () => {
     expect(startRes.status).toBe(200);
     const startData = await startRes.json();
     expect(startData.state.status).toBe("PLAYING");
-    expect(startData.state.currentRound).toBe(1);
 
-    // 4. Submit Inputs for both players
+    // 4. Submit Roll for host
     const submitHost = await app.request(`/api/rooms/${roomCode}/submit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ playerId: hostId, input: 5 }),
     });
     expect(submitHost.status).toBe(200);
-
-    const submitJoiner = await app.request(`/api/rooms/${roomCode}/submit`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playerId: joinerId, input: -3 }),
-    });
-    expect(submitJoiner.status).toBe(200);
-    const submitJoinerData = await submitJoiner.json();
-    expect(submitJoinerData.resolved).toBe(true);
+    const submitHostData = await submitHost.json();
+    expect(submitHostData.success).toBe(true);
+    expect(submitHostData.roll).toBeDefined();
+    expect(submitHostData.move).toBeDefined();
+    expect(submitHostData.move.path).toBeDefined();
+    expect(Array.isArray(submitHostData.move.path)).toBe(true);
   });
 });

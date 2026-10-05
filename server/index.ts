@@ -30,11 +30,12 @@ app.post("/api/rooms", async (c) => {
   try {
     const body = await c.req.json().catch(() => ({}));
     const name = String(body.name || "Pemain").trim();
+    const avatar = body.avatar ? String(body.avatar) : null;
     const playerId = crypto.randomUUID();
-    const room = roomManager.createRoom(name, playerId);
+    const room = roomManager.createRoom(name, playerId, avatar);
 
-    room.onGameEnd = (winnerName, totalRounds) => {
-      recordMatchWin(room.code, winnerName, totalRounds);
+    room.onGameEnd = (winnerName, rollsCount) => {
+      recordMatchWin(room.code, winnerName, rollsCount);
     };
 
     return c.json({
@@ -52,6 +53,7 @@ app.post("/api/rooms/:code/join", async (c) => {
     const code = c.req.param("code");
     const body = await c.req.json().catch(() => ({}));
     const name = String(body.name || "Pemain").trim();
+    const avatar = body.avatar ? String(body.avatar) : null;
     const room = roomManager.getRoom(code);
 
     if (!room) {
@@ -62,7 +64,7 @@ app.post("/api/rooms/:code/join", async (c) => {
     }
 
     const playerId = crypto.randomUUID();
-    room.addPlayer(name, playerId);
+    room.addPlayer(name, playerId, avatar);
     await room.broadcastState("player_joined");
 
     return c.json({
@@ -110,8 +112,8 @@ app.post("/api/rooms/:code/submit", async (c) => {
 
     if (!room) return c.json({ error: "Room tidak ditemukan" }, 404);
 
-    const resolved = room.submitPlayerInput(playerId, input);
-    return c.json({ success: true, resolved, state: room.getState() });
+    const result = room.submitPlayerRoll(playerId, input);
+    return c.json({ success: true, ...result, state: room.getState() });
   } catch (err: any) {
     return c.json({ error: err.message }, 400);
   }

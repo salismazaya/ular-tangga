@@ -26,6 +26,7 @@ export interface MoveResolution {
   fromSquare: number;
   steps: number;
   direction: "FORWARD" | "BACKWARD" | "STAY";
+  path: number[]; // Block-by-block intermediate squares
   finalSquare: number;
   targetSquare: number;
   isLadder: boolean;
@@ -43,6 +44,7 @@ export function computeNewPosition(
       fromSquare: currentSquare,
       steps: 0,
       direction: "STAY",
+      path: [currentSquare],
       finalSquare: currentSquare,
       targetSquare: currentSquare,
       isLadder: false,
@@ -51,20 +53,35 @@ export function computeNewPosition(
     };
   }
 
-  let intermediate = currentSquare;
+  const path: number[] = [];
+  let curr = currentSquare;
+
   if (direction === "FORWARD") {
-    intermediate += steps;
-    if (intermediate > 100) {
-      const overshoot = intermediate - 100;
-      intermediate = 100 - overshoot;
+    let movingForward = true;
+    for (let i = 0; i < steps; i++) {
+      if (movingForward) {
+        if (curr < 100) {
+          curr += 1;
+        } else {
+          // Mantul mundur jika melewati 100
+          movingForward = false;
+          curr -= 1;
+        }
+      } else {
+        curr -= 1;
+      }
+      path.push(curr);
     }
   } else {
-    intermediate -= steps;
-    if (intermediate < 1) {
-      intermediate = 1;
+    for (let i = 0; i < steps; i++) {
+      if (curr > 1) {
+        curr -= 1;
+      }
+      path.push(curr);
     }
   }
 
+  const intermediate = path[path.length - 1];
   let isLadder = false;
   let isSnake = false;
   let target = intermediate;
@@ -81,6 +98,7 @@ export function computeNewPosition(
     fromSquare: currentSquare,
     steps,
     direction,
+    path,
     finalSquare: intermediate,
     targetSquare: target,
     isLadder,
@@ -91,13 +109,9 @@ export function computeNewPosition(
 
 export function getSquareCoordinates(squareNumber: number): { row: number; col: number } {
   const index = Math.max(1, Math.min(100, squareNumber)) - 1;
-  const gridRow = Math.floor(index / 10); // 0 to 9 from bottom
-  const row = 9 - gridRow; // 0 at top, 9 at bottom
-
+  const gridRow = Math.floor(index / 10);
+  const row = 9 - gridRow;
   const colInRow = index % 10;
-  // Genap dari bawah (gridRow 0, 2, 4...) -> kiri ke kanan (col 0..9)
-  // Ganjil dari bawah (gridRow 1, 3, 5...) -> kanan ke kiri (col 9..0)
   const col = gridRow % 2 === 0 ? colInRow : 9 - colInRow;
-
   return { row, col };
 }

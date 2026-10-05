@@ -1,9 +1,27 @@
 <script>
   import { game } from '../gameStore.svelte';
+  import { compressImage } from '../imageCompress';
 
   let nameInput = $state(game.playerName || '');
   let joinCodeInput = $state('');
-  let activeTab = $state('join'); // 'join', 'create', 'rooms', 'leaderboard'
+  let activeTab = $state('join');
+  let compressing = $state(false);
+  let fileInputRef = $state(null);
+
+  async function handleFileChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    compressing = true;
+    try {
+      const dataUrl = await compressImage(file, 128, 0.75);
+      game.setAvatar(dataUrl);
+    } catch (err) {
+      game.setError('Gagal mengompres foto avatar: ' + err.message);
+    } finally {
+      compressing = false;
+    }
+  }
 
   function handleCreate() {
     if (!nameInput.trim()) {
@@ -35,24 +53,63 @@
     <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-white">
       Ular Tangga Matematika
     </h1>
-    <p class="text-sm text-slate-400 mt-1">
+    <p class="text-xs sm:text-sm text-slate-400 mt-1">
       Multiplayer race serentak dengan dadu matematika
     </p>
   </div>
 
-  <!-- Input Nama -->
-  <div class="mb-5">
-    <label for="pname" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-      Nama Panggilan
-    </label>
-    <input
-      id="pname"
-      type="text"
-      bind:value={nameInput}
-      placeholder="Contoh: Salis, Budi, Maya..."
-      maxlength="15"
-      class="w-full px-4 py-3 bg-slate-900/90 border border-slate-700 rounded-xl text-white font-medium focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent transition"
-    />
+  <!-- Foto Avatar & Input Nama -->
+  <div class="mb-5 space-y-4">
+    <!-- Avatar Upload Section -->
+    <div class="flex items-center gap-4 p-3 bg-slate-900/70 border border-slate-700/60 rounded-2xl">
+      <button type="button" class="relative group cursor-pointer focus:outline-none" onclick={() => fileInputRef?.click()}>
+        <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-sky-400 bg-slate-800 flex items-center justify-center shadow-md">
+          {#if game.playerAvatar}
+            <img src={game.playerAvatar} alt="Avatar" class="w-full h-full object-cover" />
+          {:else}
+            <span class="text-2xl">👤</span>
+          {/if}
+        </div>
+        <div class="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-[10px] text-white font-bold">
+          Ubah
+        </div>
+      </button>
+
+      <div class="flex-1">
+        <div class="text-xs font-bold text-slate-200">Foto Avatar Pion</div>
+        <div class="text-[11px] text-slate-400">Pionmu di papan akan memakai foto ini!</div>
+        <button
+          type="button"
+          onclick={() => fileInputRef?.click()}
+          disabled={compressing}
+          class="mt-1.5 px-3 py-1 bg-slate-800 hover:bg-slate-700 active:scale-95 text-sky-400 font-bold text-xs rounded-lg border border-slate-700 transition"
+        >
+          {compressing ? 'Mengompres...' : game.playerAvatar ? 'Ganti Foto' : '+ Upload Foto'}
+        </button>
+        <input
+          type="file"
+          accept="image/*"
+          bind:this={fileInputRef}
+          onchange={handleFileChange}
+          class="hidden"
+        />
+      </div>
+    </div>
+
+    <!-- Input Nama -->
+    <div>
+      <label for="pname" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+        Nama Panggilan
+      </label>
+      <input
+        id="pname"
+        type="text"
+        bind:value={nameInput}
+        placeholder="Contoh: Salis, Budi, Maya..."
+        maxlength="15"
+        class="w-full px-4 py-3 bg-slate-900/90 border border-slate-700 rounded-xl text-white font-medium focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent transition"
+      />
+    </div>
   </div>
 
   <!-- Tabs Navigation -->
@@ -88,7 +145,7 @@
           onkeydown={(e) => e.key === 'Enter' && handleJoin()}
         />
         <p class="text-[11px] text-slate-500 mt-1 text-center">
-          *Kode tidak memakai huruf O/0/I/1/L agar mudah dibaca
+          *Kode tanpa huruf O/0/I/1/L agar bebas salah baca
         </p>
       </div>
 
@@ -109,9 +166,9 @@
     <div class="space-y-4">
       <div class="p-4 bg-slate-900/60 rounded-xl border border-slate-700/60 text-xs text-slate-300 space-y-1.5">
         <div class="font-bold text-amber-300">Pengaturan Room:</div>
-        <div>• Mode: Balapan Serentak (Simultaneous)</div>
-        <div>• Timer Ronde: 10 Detik per soal</div>
-        <div>• Papan: 100 Kotak dengan Ular & Tangga</div>
+        <div>• Mode: Balapan Serentak (Semua pemain berlari bersamaan)</div>
+        <div>• Dadu: Matematika (+ / -) menuju kotak finish 100</div>
+        <div>• Rintangan: Tangga meluncur naik, Ular menggigit turun</div>
       </div>
 
       <button
@@ -136,7 +193,7 @@
       <span class="text-emerald-400 font-semibold">Positif = Maju</span>,
       <span class="text-rose-400 font-semibold">Negatif = Mundur</span>,
       <span class="text-slate-300 font-semibold">0 = Diam</span>.
-      Jika keluar <span class="text-amber-300 font-bold">6 atau -6</span>, kamu dapat bonus!
+      Pion akan melompat kotak demi kotak sampai ke finish!
     </div>
   </div>
 

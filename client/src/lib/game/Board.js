@@ -28,6 +28,7 @@ export function computeNewPosition(currentSquare, steps, direction) {
       fromSquare: currentSquare,
       steps: 0,
       direction: "STAY",
+      path: [currentSquare],
       finalSquare: currentSquare,
       targetSquare: currentSquare,
       isLadder: false,
@@ -36,20 +37,34 @@ export function computeNewPosition(currentSquare, steps, direction) {
     };
   }
 
-  let intermediate = currentSquare;
+  const path = [];
+  let curr = currentSquare;
+
   if (direction === "FORWARD") {
-    intermediate += steps;
-    if (intermediate > 100) {
-      const overshoot = intermediate - 100;
-      intermediate = 100 - overshoot;
+    let movingForward = true;
+    for (let i = 0; i < steps; i++) {
+      if (movingForward) {
+        if (curr < 100) {
+          curr += 1;
+        } else {
+          movingForward = false;
+          curr -= 1;
+        }
+      } else {
+        curr -= 1;
+      }
+      path.push(curr);
     }
   } else {
-    intermediate -= steps;
-    if (intermediate < 1) {
-      intermediate = 1;
+    for (let i = 0; i < steps; i++) {
+      if (curr > 1) {
+        curr -= 1;
+      }
+      path.push(curr);
     }
   }
 
+  const intermediate = path[path.length - 1];
   let isLadder = false;
   let isSnake = false;
   let target = intermediate;
@@ -66,6 +81,7 @@ export function computeNewPosition(currentSquare, steps, direction) {
     fromSquare: currentSquare,
     steps,
     direction,
+    path,
     finalSquare: intermediate,
     targetSquare: target,
     isLadder,

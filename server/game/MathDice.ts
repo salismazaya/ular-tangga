@@ -2,7 +2,6 @@ export interface DiceResult {
   steps: number;
   direction: "FORWARD" | "BACKWARD" | "STAY";
   raw: number;
-  extraTurn: boolean;
 }
 
 export interface Challenge {
@@ -18,16 +17,15 @@ export interface RollResult extends DiceResult {
 
 export function calculateDice(raw: number): DiceResult {
   if (raw === 0) {
-    return { steps: 0, direction: "STAY", raw: 0, extraTurn: false };
+    return { steps: 0, direction: "STAY", raw: 0 };
   }
 
   const isPositive = raw > 0;
   const absVal = Math.abs(raw);
   const steps = ((absVal - 1) % 6) + 1;
   const direction: "FORWARD" | "BACKWARD" = isPositive ? "FORWARD" : "BACKWARD";
-  const extraTurn = steps === 6;
 
-  return { steps, direction, raw, extraTurn };
+  return { steps, direction, raw };
 }
 
 export function generateChallenge(): Challenge {
@@ -52,6 +50,5 @@ export function calculateRollWithInput(
     raw,
     steps: dice.steps,
     direction: dice.direction,
-    extraTurn: dice.extraTurn,
   };
 }

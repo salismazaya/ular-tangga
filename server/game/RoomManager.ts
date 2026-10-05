@@ -13,9 +13,9 @@ export class RoomManager {
     return code;
   }
 
-  createRoom(hostName: string, hostId: string): GameRoom {
+  createRoom(hostName: string, hostId: string, hostAvatar?: string | null): GameRoom {
     const code = this.generateCode();
-    const room = new GameRoom(code, hostName, hostId);
+    const room = new GameRoom(code, hostName, hostId, hostAvatar);
     this.rooms.set(code, room);
     return room;
   }
@@ -26,11 +26,7 @@ export class RoomManager {
   }
 
   removeRoom(code: string) {
-    const room = this.getRoom(code);
-    if (room) {
-      room.stopTimer();
-      this.rooms.delete(code.toUpperCase().trim());
-    }
+    this.rooms.delete(code.toUpperCase().trim());
   }
 
   listPublicRooms(): Array<{ code: string; playerCount: number; status: string; hostName: string }> {

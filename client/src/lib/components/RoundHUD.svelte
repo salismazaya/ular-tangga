@@ -1,12 +1,9 @@
 <script>
-  import { calculateRollWithInput } from '../game/MathDice';
-
   let {
     challenge = null,
-    timeLeft = 10,
-    currentRound = 1,
     status = 'PLAYING',
-    hasSubmitted = false,
+    rolling = false,
+    latestRoll = null,
     players = [],
     myId = '',
     winner = null,
@@ -15,17 +12,7 @@
 
   let inputVal = $state('');
 
-  // Live calculation preview as user types
-  const parsedInput = $derived(
-    inputVal === '' || isNaN(Number(inputVal)) ? 0 : Math.round(Number(inputVal))
-  );
-
-  const previewRoll = $derived.by(() => {
-    if (!challenge) return null;
-    return calculateRollWithInput(challenge.screenNumber, challenge.op, parsedInput);
-  });
-
-  // Reset input value when round changes / challenge updates
+  // Reset input saat soal baru datang
   $effect(() => {
     if (challenge) {
       inputVal = '';
@@ -33,134 +20,96 @@
   });
 
   function handleSubmit() {
-    if (hasSubmitted || status !== 'PLAYING') return;
-    onSubmit(parsedInput);
+    if (rolling || status !== 'PLAYING') return;
+    const num = inputVal === '' || isNaN(Number(inputVal)) ? 0 : Math.round(Number(inputVal));
+    onSubmit(num);
   }
 
   function handleRandom() {
-    if (hasSubmitted || status !== 'PLAYING') return;
+    if (rolling || status !== 'PLAYING') return;
     const rnd = Math.floor(Math.random() * 41) - 20; // -20 s/d 20
     inputVal = String(rnd);
     onSubmit(rnd);
   }
 
   const myPlayer = $derived(players.find((p) => p.id === myId));
-  const myLastRoll = $derived(myPlayer?.lastRoll);
-  const myLastMove = $derived(myPlayer?.lastMove);
 </script>
 
 <div class="w-full max-w-[620px] mx-auto mt-3 bg-slate-800/90 border border-slate-700 rounded-2xl p-4 shadow-xl backdrop-blur-sm">
-  <!-- Top Bar: Ronde & Non-blocking Timer -->
-  <div class="flex items-center justify-between pb-3 border-b border-slate-700/70 mb-3">
-    <div class="flex items-center gap-2">
-      <span class="px-2.5 py-1 bg-amber-500/20 text-amber-300 font-bold text-xs uppercase tracking-wider rounded-lg border border-amber-500/30">
-        Ronde {currentRound}
-      </span>
-      <span class="text-xs text-slate-400">
-        {status === 'RESOLVING' ? 'Sedang bergerak...' : status === 'FINISHED' ? 'Permainan Selesai' : 'Serentak Berjalan'}
-      </span>
-    </div>
-
-    <!-- Timer Countdown -->
-    <div class="flex items-center gap-2">
-      <div class="w-24 bg-slate-700 h-2.5 rounded-full overflow-hidden">
-        <div
-          class="h-full transition-all duration-1000 ease-linear {timeLeft <= 3 ? 'bg-rose-500' : 'bg-emerald-400'}"
-          style="width: {Math.max(0, Math.min(100, (timeLeft / 10) * 100))}%;"
-        ></div>
-      </div>
-      <span class="font-mono-code font-bold text-sm {timeLeft <= 3 ? 'text-rose-400 animate-pulse' : 'text-slate-300'}">
-        {timeLeft}s
-      </span>
-    </div>
-  </div>
-
-  <!-- Winner Banner if Finished -->
+  <!-- Winner Announcement -->
   {#if status === 'FINISHED' && winner}
-    <div class="p-3.5 bg-emerald-500/20 border border-emerald-500/40 rounded-xl text-center mb-3">
-      <div class="text-xs uppercase tracking-wider font-bold text-emerald-400">Pemenang Juara 1 🎉</div>
-      <div class="text-xl font-extrabold text-white mt-0.5">{winner.name} Mencapai Kotak 100!</div>
+    <div class="p-4 bg-emerald-500/20 border border-emerald-500/50 rounded-xl text-center mb-3 animate-pulse">
+      <div class="text-xs uppercase tracking-wider font-extrabold text-emerald-400">JUARA 1 MENCAPAI KOTAK 100! 🏆</div>
+      <div class="text-2xl font-black text-white mt-1">{winner.name}</div>
     </div>
   {/if}
 
-  <!-- Math Challenge Box -->
-  {#if challenge}
-    <div class="bg-slate-900/80 border border-slate-700/80 rounded-xl p-3.5 text-center">
-      <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+  <!-- Header Info -->
+  <div class="flex items-center justify-between pb-3 border-b border-slate-700/60 mb-3 text-xs">
+    <div class="flex items-center gap-2">
+      <span class="px-2.5 py-1 bg-sky-500/20 text-sky-300 font-bold rounded-lg border border-sky-500/30">
+        Balapan Serentak
+      </span>
+      <span class="text-slate-400">
+        Kotak Saat Ini: <strong class="text-amber-300 font-mono-code font-bold text-sm">{myPlayer?.currentSquare || 1}</strong>
+      </span>
+    </div>
+
+    <span class="text-slate-400">
+      Total Lemparan: <strong class="text-slate-200 font-mono-code">{myPlayer?.rollsCount || 0}</strong>
+    </span>
+  </div>
+
+  <!-- Math Challenge Form (TANPA PREVIEW LANGKAH SESUAI PERMINTAAN BOS) -->
+  {#if challenge && status === 'PLAYING'}
+    <div class="bg-slate-900/90 border border-slate-700/80 rounded-xl p-4 text-center">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
         Tantangan Dadu Matematika
       </div>
 
-      <div class="flex items-center justify-center gap-2 sm:gap-3 text-2xl sm:text-3xl font-mono-code font-extrabold text-white">
-        <!-- Angka Layar -->
-        <span class="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-amber-300">
+      <!-- Persamaan Matematika -->
+      <div class="flex items-center justify-center gap-2 sm:gap-3 text-3xl sm:text-4xl font-mono-code font-extrabold text-white my-2">
+        <span class="px-3.5 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-amber-300 shadow-inner">
           {challenge.screenNumber}
         </span>
 
-        <!-- Operator -->
         <span class="text-slate-400 font-bold">{challenge.op}</span>
 
-        <!-- Input Angka Pemain -->
-        <div class="relative inline-block">
+        <div class="inline-block">
           <input
             type="number"
             bind:value={inputVal}
-            disabled={hasSubmitted || status !== 'PLAYING'}
-            placeholder="0"
-            class="w-20 sm:w-24 px-2 py-1.5 text-center bg-slate-800 border-2 {hasSubmitted ? 'border-emerald-500 text-emerald-400' : 'border-sky-500 text-sky-200'} rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 font-mono-code font-bold"
+            disabled={rolling}
+            placeholder="?"
+            class="w-24 sm:w-28 px-2 py-1.5 text-center bg-slate-800 border-2 border-sky-400 text-sky-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-300 font-mono-code font-black text-2xl shadow-inner"
             onkeydown={(e) => e.key === 'Enter' && handleSubmit()}
           />
         </div>
 
         <span class="text-slate-500">=</span>
 
-        <!-- Hasil Raw -->
-        <span class="px-3 py-1.5 bg-slate-800/90 border border-slate-700 text-slate-300 rounded-lg text-lg sm:text-xl">
-          {previewRoll ? previewRoll.raw : 0}
+        <span class="px-3.5 py-1.5 bg-slate-800/80 border border-slate-700 text-slate-400 rounded-xl text-xl">
+          🎲
         </span>
       </div>
 
-      <!-- Live Preview Badge -->
-      {#if previewRoll}
-        <div class="mt-2.5 flex items-center justify-center gap-2 text-xs">
-          {#if previewRoll.direction === 'FORWARD'}
-            <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 font-bold rounded border border-emerald-500/40">
-              Maju {previewRoll.steps} Langkah
-            </span>
-          {:else if previewRoll.direction === 'BACKWARD'}
-            <span class="px-2 py-0.5 bg-rose-500/20 text-rose-300 font-bold rounded border border-rose-500/40">
-              Mundur {previewRoll.steps} Langkah
-            </span>
-          {:else}
-            <span class="px-2 py-0.5 bg-slate-700 text-slate-300 font-bold rounded">
-              Diam di Tempat (0)
-            </span>
-          {/if}
-
-          {#if previewRoll.extraTurn}
-            <span class="px-2 py-0.5 bg-amber-400/20 text-amber-300 font-bold rounded border border-amber-400/50">
-              ★ Ekstra Roll (6)
-            </span>
-          {/if}
-        </div>
-      {/if}
-
-      <!-- Action Buttons -->
-      <div class="mt-3 flex items-center justify-center gap-2">
+      <!-- Tombol Aksi Roll & Acak -->
+      <div class="mt-4 flex items-center justify-center gap-2">
         <button
           onclick={handleSubmit}
-          disabled={hasSubmitted || status !== 'PLAYING'}
-          class="flex-1 max-w-[200px] py-2 px-4 rounded-xl font-bold text-sm transition-all shadow-md {hasSubmitted
-            ? 'bg-emerald-600 text-white cursor-default'
-            : 'bg-sky-500 hover:bg-sky-400 active:scale-95 text-slate-950 font-extrabold'}"
+          disabled={rolling}
+          class="flex-1 max-w-[220px] py-3 px-5 rounded-xl font-black text-sm transition-all shadow-lg shadow-sky-500/20 active:scale-95 {rolling
+            ? 'bg-slate-700 text-slate-400 cursor-wait'
+            : 'bg-gradient-to-r from-sky-400 to-sky-500 hover:from-sky-300 hover:to-sky-400 text-slate-950'}"
         >
-          {hasSubmitted ? '✓ Angka Terkunci' : 'Kunci Jawaban'}
+          {rolling ? '⏳ Mengocok Dadu...' : 'Kocok Dadu! 🎲'}
         </button>
 
         <button
           onclick={handleRandom}
-          disabled={hasSubmitted || status !== 'PLAYING'}
+          disabled={rolling}
           title="Pilih angka acak (-20 s/d 20)"
-          class="py-2 px-3 bg-slate-700 hover:bg-slate-600 active:scale-95 text-slate-200 font-semibold text-xs rounded-xl border border-slate-600 transition"
+          class="py-3 px-3.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 font-bold text-xs rounded-xl border border-slate-700 transition"
         >
           🎲 Acak (-20..20)
         </button>
@@ -168,40 +117,57 @@
     </div>
   {/if}
 
-  <!-- Player Readiness Bar (Siapa yang sudah submit) -->
-  <div class="mt-3 pt-2.5 border-t border-slate-700/60 flex flex-wrap items-center justify-between gap-1.5 text-xs">
-    <span class="text-slate-400 font-medium">Status Pemain:</span>
-    <div class="flex flex-wrap items-center gap-1.5">
-      {#each players as p}
-        <div
-          class="flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] {p.hasSubmitted
-            ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300'
-            : 'bg-slate-800/80 border-slate-700 text-slate-400'}"
-        >
-          <span class="w-2 h-2 rounded-full" style="background-color: {p.color};"></span>
-          <span class="font-semibold">{p.name}</span>
-          <span>{p.hasSubmitted ? '✓' : '...'}</span>
+  <!-- Hasil Dadu Setelah Di-Roll -->
+  {#if latestRoll?.roll}
+    {@const r = latestRoll.roll}
+    {@const m = latestRoll.move}
+    <div class="mt-3 p-3 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs space-y-1 animate-fade-in">
+      <div class="flex items-center justify-between">
+        <span class="text-slate-400">Hasil Lemparan:</span>
+        <span class="font-mono-code font-bold text-white">
+          {r.screenNumber} {r.op} {r.userInput} = <span class="text-amber-300 font-extrabold">{r.raw}</span>
+        </span>
+      </div>
+
+      <div class="flex items-center justify-between pt-1 border-t border-slate-800">
+        <span class="text-slate-300">
+          Aksi Pion:
+          {#if r.direction === 'FORWARD'}
+            <strong class="text-emerald-400 font-bold ml-1">Maju +{r.steps} Langkah</strong>
+          {:else if r.direction === 'BACKWARD'}
+            <strong class="text-rose-400 font-bold ml-1">Mundur -{r.steps} Langkah</strong>
+          {:else}
+            <strong class="text-slate-400 font-bold ml-1">Diam di Tempat (0)</strong>
+          {/if}
+        </span>
+
+        {#if m?.isLadder}
+          <span class="text-amber-400 font-extrabold">🚀 Naik Tangga ke {m.targetSquare}!</span>
+        {:else if m?.isSnake}
+          <span class="text-rose-400 font-extrabold">🐍 Digigit Ular ke {m.targetSquare}!</span>
+        {:else}
+          <span class="text-slate-400">Menuju kotak <strong class="text-amber-300">{m?.targetSquare}</strong></span>
+        {/if}
+      </div>
+    </div>
+  {/if}
+
+  <!-- Leaderboard Balapan Pemain di Room -->
+  <div class="mt-3 pt-3 border-t border-slate-700/60 text-xs">
+    <div class="font-bold text-slate-400 uppercase tracking-wider mb-2">Posisi Balapan Saat Ini:</div>
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      {#each [...players].sort((a, b) => (b.currentSquare || 1) - (a.currentSquare || 1)) as p, idx}
+        <div class="flex items-center justify-between p-2 bg-slate-900/60 rounded-lg border border-slate-800">
+          <div class="flex items-center gap-1.5 truncate">
+            <span class="text-slate-500 font-bold">#{idx + 1}</span>
+            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: {p.color};"></span>
+            <span class="font-semibold text-slate-200 truncate">{p.name}</span>
+          </div>
+          <span class="font-mono-code font-bold text-amber-300 shrink-0 ml-1">
+            {p.currentSquare || 1}
+          </span>
         </div>
       {/each}
     </div>
   </div>
-
-  <!-- Move Feedback History (Setelah ronde dieksekusi) -->
-  {#if myLastMove}
-    <div class="mt-2.5 p-2 bg-slate-900/60 rounded-lg text-xs flex items-center justify-between text-slate-300">
-      <div>
-        Langkahmu:
-        <span class="font-bold text-white">
-          {myLastRoll?.direction === 'FORWARD' ? `+${myLastRoll.steps}` : myLastRoll?.direction === 'BACKWARD' ? `-${myLastRoll.steps}` : '0'}
-        </span>
-        menuju kotak <span class="font-bold text-amber-300">{myLastMove.finalSquare}</span>
-      </div>
-
-      {#if myLastMove.isLadder}
-        <span class="text-amber-400 font-bold">Naik Tangga ke {myLastMove.targetSquare}! 🚀</span>
-      {:else if myLastMove.isSnake}
-        <span class="text-rose-400 font-bold">Digigit Ular turun ke {myLastMove.targetSquare}! 🐍</span>
-      {/if}
-    </div>
-  {/if}
 </div>

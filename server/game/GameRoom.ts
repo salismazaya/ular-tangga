@@ -6,12 +6,13 @@ export interface Player {
   id: string;
   name: string;
   color: string;
+  avatar?: string | null;
   currentSquare: number;
-  submittedInput: number | null;
+  currentChallenge: Challenge | null;
   lastRoll: RollResult | null;
   lastMove: MoveResolution | null;
   isWinner: boolean;
-  connected: boolean;
+  rollsCount: number;
 }
 
 const PLAYER_COLORS = [
@@ -28,26 +29,21 @@ const PLAYER_COLORS = [
 export class GameRoom {
   code: string;
   hostId: string;
-  status: "LOBBY" | "PLAYING" | "RESOLVING" | "FINISHED" = "LOBBY";
+  status: "LOBBY" | "PLAYING" | "FINISHED" = "LOBBY";
   players: Player[] = [];
-  currentRound = 0;
-  currentChallenge: Challenge | null = null;
-  roundTimerSeconds = 10;
-  timeLeft = 10;
-  timerInterval: any = null;
   winner: Player | null = null;
-  onGameEnd?: (winnerName: string, totalRounds: number) => void;
+  onGameEnd?: (winnerName: string, rollsCount: number) => void;
 
-  constructor(code: string, hostName: string, hostId: string) {
+  constructor(code: string, hostName: string, hostId: string, hostAvatar?: string | null) {
     this.code = code;
     this.hostId = hostId;
-    this.addPlayer(hostName, hostId);
+    this.addPlayer(hostName, hostId, hostAvatar);
   }
 
-  addPlayer(name: string, id: string): Player {
+  addPlayer(name: string, id: string, avatar?: string | null): Player {
     const existing = this.players.find((p) => p.id === id);
     if (existing) {
-      existing.connected = true;
+      if (avatar) existing.avatar = avatar;
       return existing;
     }
 
@@ -56,12 +52,13 @@ export class GameRoom {
       id,
       name,
       color,
+      avatar: avatar || null,
       currentSquare: 1,
-      submittedInput: null,
+      currentChallenge: null,
       lastRoll: null,
       lastMove: null,
       isWinner: false,
-      connected: true,
+      rollsCount: 0,
     };
     this.players.push(player);
     return player;
@@ -72,16 +69,15 @@ export class GameRoom {
     if (this.hostId === id && this.players.length > 0) {
       this.hostId = this.players[0].id;
     }
-    if (this.players.length === 0) {
-      this.stopTimer();
-    } else {
+    if (this.players.length > 0) {
       this.broadcastState("player_left");
     }
   }
 
-  async broadcastState(eventName = "room_updated") {
+  async broadcastState(eventName = "room_updated", extra: any = {}) {
     await broadcast(this.code, eventName, {
       state: this.getState(),
+      ...extra,
     });
   }
 
@@ -90,115 +86,68 @@ export class GameRoom {
     if (this.players.length < 1) throw new Error("Minimal butuh 1 pemain untuk bermain");
 
     this.status = "PLAYING";
-    this.currentRound = 1;
     this.winner = null;
     for (const p of this.players) {
       p.currentSquare = 1;
-      p.submittedInput = null;
+      p.currentChallenge = generateChallenge();
       p.lastRoll = null;
       p.lastMove = null;
       p.isWinner = false;
+      p.rollsCount = 0;
     }
 
-    this.startNewRound();
+    this.broadcastState("game_started");
   }
 
-  startNewRound() {
-    this.status = "PLAYING";
-    this.currentChallenge = generateChallenge();
-    this.timeLeft = this.roundTimerSeconds;
-    for (const p of this.players) {
-      p.submittedInput = null;
-    }
-
-    this.stopTimer();
-    this.broadcastState("round_started");
-
-    this.timerInterval = setInterval(() => {
-      this.timeLeft -= 1;
-      if (this.timeLeft <= 0) {
-        this.stopTimer();
-        // Auto submit 0 bagi pemain yang belum submit
-        for (const p of this.players) {
-          if (p.submittedInput === null) {
-            p.submittedInput = 0;
-          }
-        }
-        this.resolveRound();
-      } else {
-        broadcast(this.code, "timer_tick", {
-          timeLeft: this.timeLeft,
-        });
-      }
-    }, 1000);
-  }
-
-  stopTimer() {
-    if (this.timerInterval) {
-      clearInterval(this.timerInterval);
-      this.timerInterval = null;
-    }
-  }
-
-  submitPlayerInput(playerId: string, input: number): boolean {
+  submitPlayerRoll(playerId: string, input: number) {
     const player = this.players.find((p) => p.id === playerId);
-    if (!player || this.status !== "PLAYING" || !this.currentChallenge) return false;
+    if (!player) throw new Error("Pemain tidak ditemukan");
+    if (this.status !== "PLAYING") throw new Error("Game belum dimulai atau sudah selesai");
 
-    player.submittedInput = input;
-
-    // Cek apakah semua pemain sudah submit
-    const allSubmitted = this.players.every((p) => p.submittedInput !== null);
-    if (allSubmitted) {
-      this.stopTimer();
-      this.resolveRound();
-      return true;
-    } else {
-      this.broadcastState("player_submitted");
-      return false;
-    }
-  }
-
-  resolveRound() {
-    if (!this.currentChallenge) return;
-    this.status = "RESOLVING";
-
-    for (const player of this.players) {
-      const input = player.submittedInput ?? 0;
-      const roll = calculateRollWithInput(
-        this.currentChallenge.screenNumber,
-        this.currentChallenge.op,
-        input
-      );
-      player.lastRoll = roll;
-
-      const move = computeNewPosition(player.currentSquare, roll.steps, roll.direction);
-      player.lastMove = move;
-      player.currentSquare = move.targetSquare;
-
-      if (move.finished && !this.winner) {
-        player.isWinner = true;
-        this.winner = player;
-        this.status = "FINISHED";
-      }
+    if (!player.currentChallenge) {
+      player.currentChallenge = generateChallenge();
     }
 
-    this.broadcastState("round_resolved");
+    const roll = calculateRollWithInput(
+      player.currentChallenge.screenNumber,
+      player.currentChallenge.op,
+      input
+    );
+    const move = computeNewPosition(player.currentSquare, roll.steps, roll.direction);
 
-    if (this.status === "FINISHED" && this.winner) {
-      this.stopTimer();
-      this.broadcastState("game_finished");
+    player.lastRoll = roll;
+    player.lastMove = move;
+    player.currentSquare = move.targetSquare;
+    player.rollsCount += 1;
+
+    if (move.finished && !this.winner) {
+      player.isWinner = true;
+      this.winner = player;
+      this.status = "FINISHED";
+
+      this.broadcastState("game_finished", {
+        winner: { id: player.id, name: player.name, avatar: player.avatar },
+        lastMove: { playerId: player.id, move, roll },
+      });
+
       if (this.onGameEnd) {
-        this.onGameEnd(this.winner.name, this.currentRound);
+        this.onGameEnd(player.name, player.rollsCount);
       }
-    } else {
-      // Jeda 2.5 detik untuk animasi pion di layar
-      setTimeout(() => {
-        if (this.status === "RESOLVING") {
-          this.currentRound += 1;
-          this.startNewRound();
-        }
-      }, 2500);
+
+      return { roll, move, nextChallenge: null };
     }
+
+    // Buat soal berikutnya untuk pemain ini
+    player.currentChallenge = generateChallenge();
+
+    this.broadcastState("player_moved", {
+      playerId: player.id,
+      playerName: player.name,
+      roll,
+      move,
+    });
+
+    return { roll, move, nextChallenge: player.currentChallenge };
   }
 
   getState() {
@@ -206,20 +155,21 @@ export class GameRoom {
       code: this.code,
       hostId: this.hostId,
       status: this.status,
-      currentRound: this.currentRound,
-      currentChallenge: this.currentChallenge,
-      timeLeft: this.timeLeft,
       players: this.players.map((p) => ({
         id: p.id,
         name: p.name,
         color: p.color,
+        avatar: p.avatar || null,
         currentSquare: p.currentSquare,
-        hasSubmitted: p.submittedInput !== null,
+        currentChallenge: p.currentChallenge,
         lastRoll: p.lastRoll,
         lastMove: p.lastMove,
         isWinner: p.isWinner,
+        rollsCount: p.rollsCount,
       })),
-      winner: this.winner ? { id: this.winner.id, name: this.winner.name } : null,
+      winner: this.winner
+        ? { id: this.winner.id, name: this.winner.name, avatar: this.winner.avatar }
+        : null,
     };
   }
 }

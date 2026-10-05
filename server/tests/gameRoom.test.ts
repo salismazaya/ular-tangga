@@ -12,29 +12,26 @@ describe("GameRoom Simultaneous Loop", () => {
 
     room.startGame("ws1");
     expect(room.status).toBe("PLAYING");
-    expect(room.currentRound).toBe(1);
-    expect(room.currentChallenge).not.toBeNull();
+    expect(room.players[0].currentChallenge).not.toBeNull();
   });
 
-  it("resolves round simultaneously when all players submit input", () => {
+  it("calculates player roll and animates path", () => {
     const room = new GameRoom("TEST", "Alice", "p1");
     room.addPlayer("Bob", "p2");
     room.startGame("p1");
 
     // Force known challenge for determinism
-    room.currentChallenge = { screenNumber: 10, op: "+" };
+    const alice = room.players.find((p) => p.id === "p1")!;
+    alice.currentChallenge = { screenNumber: 10, op: "+" };
 
     // Alice inputs 5 -> 10 + 5 = 15 -> steps: ((15-1)%6)+1 = 3 (FORWARD) -> square 1 + 3 = 4 -> Ladder to 14
-    // Bob inputs -10 -> 10 + (-10) = 0 -> STAY -> square 1
-    room.submitPlayerInput("p1", 5);
-    const roundResolved = room.submitPlayerInput("p2", -10);
+    const result = room.submitPlayerRoll("p1", 5);
 
-    expect(roundResolved).toBe(true);
-
-    const alice = room.players.find((p) => p.id === "p1");
-    const bob = room.players.find((p) => p.id === "p2");
-
-    expect(alice?.currentSquare).toBe(14); // via ladder 4->14
-    expect(bob?.currentSquare).toBe(1); // STAY
+    expect(result.roll.raw).toBe(15);
+    expect(result.roll.steps).toBe(3);
+    expect(result.move.path).toEqual([2, 3, 4]);
+    expect(result.move.isLadder).toBe(true);
+    expect(result.move.targetSquare).toBe(14);
+    expect(alice.currentSquare).toBe(14);
   });
 });

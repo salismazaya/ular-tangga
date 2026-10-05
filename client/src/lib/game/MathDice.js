@@ -1,15 +1,14 @@
 export function calculateDice(raw) {
   if (raw === 0) {
-    return { steps: 0, direction: "STAY", raw: 0, extraTurn: false };
+    return { steps: 0, direction: "STAY", raw: 0 };
   }
 
   const isPositive = raw > 0;
   const absVal = Math.abs(raw);
   const steps = ((absVal - 1) % 6) + 1;
   const direction = isPositive ? "FORWARD" : "BACKWARD";
-  const extraTurn = steps === 6;
 
-  return { steps, direction, raw, extraTurn };
+  return { steps, direction, raw };
 }
 
 export function generateChallenge() {
@@ -30,6 +29,5 @@ export function calculateRollWithInput(screenNumber, op, userInput) {
     raw,
     steps: dice.steps,
     direction: dice.direction,
-    extraTurn: dice.extraTurn,
   };
 }
