@@ -209,8 +209,8 @@
         <div class="flex items-center justify-between p-2 bg-slate-900/60 rounded-lg border border-slate-800">
           <div class="flex items-center gap-1.5 truncate">
             <span class="text-slate-500 font-bold">#{idx + 1}</span>
-            {#if p.avatar}
-              <img src={p.avatar} alt="Avatar" class="w-4 h-4 rounded-full object-cover shrink-0 border border-sky-400" />
+            {#if p.avatarUrl || p.avatar}
+              <img src={p.avatarUrl || p.avatar} alt="Avatar" class="w-4 h-4 rounded-full object-cover shrink-0 border border-sky-400" />
             {:else}
               <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: {p.color};"></span>
             {/if}

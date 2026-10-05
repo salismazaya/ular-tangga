@@ -11,6 +11,19 @@ const app = new Hono();
 
 app.use("/api/*", cors());
 
+// Avatar in-memory store to prevent huge base64 strings in Pusher payloads
+const avatarStore = new Map<string, { buffer: Uint8Array; mime: string }>();
+
+function storeAvatar(playerId: string, dataUrl: string | null) {
+  if (!dataUrl || typeof dataUrl !== "string" || !dataUrl.startsWith("data:")) return;
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (match) {
+    const mime = match[1];
+    const buffer = Buffer.from(match[2], "base64");
+    avatarStore.set(playerId, { buffer: new Uint8Array(buffer), mime });
+  }
+}
+
 // REST APIs
 app.get("/api/health", (c) => c.json({ status: "ok" }));
 
@@ -20,6 +33,15 @@ app.get("/api/pusher-config", (c) => {
     key: cfg.key,
     cluster: cfg.cluster,
   });
+});
+
+app.get("/api/avatars/:id", (c) => {
+  const id = c.req.param("id");
+  const item = avatarStore.get(id);
+  if (!item) return c.notFound();
+  c.header("Content-Type", item.mime);
+  c.header("Cache-Control", "public, max-age=86400");
+  return c.body(item.buffer);
 });
 
 app.get("/api/leaderboard", (c) => c.json(getLeaderboard()));
@@ -32,6 +54,11 @@ app.post("/api/rooms", async (c) => {
     const name = String(body.name || "Pemain").trim();
     const avatar = body.avatar ? String(body.avatar) : null;
     const playerId = crypto.randomUUID();
+
+    if (avatar) {
+      storeAvatar(playerId, avatar);
+    }
+
     const room = roomManager.createRoom(name, playerId, avatar);
 
     room.onGameEnd = (winnerName, rollsCount) => {
@@ -64,6 +91,10 @@ app.post("/api/rooms/:code/join", async (c) => {
     }
 
     const playerId = crypto.randomUUID();
+    if (avatar) {
+      storeAvatar(playerId, avatar);
+    }
+
     room.addPlayer(name, playerId, avatar);
     await room.broadcastState("player_joined");
 

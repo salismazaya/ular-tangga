@@ -62,10 +62,14 @@
 
         <div class="flex items-center justify-between p-3 bg-slate-900/60 border border-slate-700/60 rounded-xl">
           <div class="flex items-center gap-3">
-            <span
-              class="w-4 h-4 rounded-full border border-white/20 shadow-sm"
-              style="background-color: {player.color};"
-            ></span>
+            {#if player.avatarUrl || player.avatar}
+              <img src={player.avatarUrl || player.avatar} alt="Avatar" class="w-6 h-6 rounded-full object-cover border border-sky-400" />
+            {:else}
+              <span
+                class="w-4 h-4 rounded-full border border-white/20 shadow-sm"
+                style="background-color: {player.color};"
+              ></span>
+            {/if}
             <span class="font-bold text-slate-100 text-sm">
               {player.name}
               {#if isMe}

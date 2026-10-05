@@ -136,7 +136,7 @@ export class GameRoom {
       this.status = "FINISHED";
 
       this.broadcastState("game_finished", {
-        winner: { id: player.id, name: player.name, avatar: player.avatar },
+        winner: { id: player.id, name: player.name, avatarUrl: player.avatar ? `/api/avatars/${player.id}` : null },
         lastMove: { playerId: player.id, move, roll },
       });
 
@@ -166,7 +166,7 @@ export class GameRoom {
         id: p.id,
         name: p.name,
         color: p.color,
-        avatar: p.avatar || null,
+        avatarUrl: p.avatar ? `/api/avatars/${p.id}` : null,
         currentSquare: p.currentSquare,
         currentChallenge: p.currentChallenge,
         lastRoll: p.lastRoll,
@@ -175,7 +175,7 @@ export class GameRoom {
         rollsCount: p.rollsCount,
       })),
       winner: this.winner
-        ? { id: this.winner.id, name: this.winner.name, avatar: this.winner.avatar }
+        ? { id: this.winner.id, name: this.winner.name, avatarUrl: this.winner.avatar ? `/api/avatars/${this.winner.id}` : null }
         : null,
     };
   }

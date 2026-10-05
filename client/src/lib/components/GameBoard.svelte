@@ -346,9 +346,9 @@
         />
 
         <!-- Foto Avatar Kustom ATAU Inisial Huruf -->
-        {#if player.avatar}
+        {#if player.avatarUrl || player.avatar}
           <image
-            href={player.avatar}
+            href={player.avatarUrl || player.avatar}
             x="-22"
             y="-22"
             width="44"
