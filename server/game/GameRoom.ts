@@ -89,7 +89,7 @@ export class GameRoom {
     this.winner = null;
     for (const p of this.players) {
       p.currentSquare = 1;
-      p.currentChallenge = generateChallenge();
+      p.currentChallenge = null;
       p.lastRoll = null;
       p.lastMove = null;
       p.isWinner = false;
@@ -97,6 +97,15 @@ export class GameRoom {
     }
 
     this.broadcastState("game_started");
+  }
+
+  spinRoll(playerId: string) {
+    const player = this.players.find((p) => p.id === playerId);
+    if (!player) throw new Error("Pemain tidak ditemukan");
+    if (this.status !== "PLAYING") throw new Error("Game belum dimulai atau sudah selesai");
+
+    player.currentChallenge = generateChallenge();
+    return { challenge: player.currentChallenge };
   }
 
   submitPlayerRoll(playerId: string, input: number) {
@@ -119,6 +128,7 @@ export class GameRoom {
     player.lastMove = move;
     player.currentSquare = move.targetSquare;
     player.rollsCount += 1;
+    player.currentChallenge = null;
 
     if (move.finished && !this.winner) {
       player.isWinner = true;
@@ -134,11 +144,8 @@ export class GameRoom {
         this.onGameEnd(player.name, player.rollsCount);
       }
 
-      return { roll, move, nextChallenge: null };
+      return { roll, move, finished: true };
     }
-
-    // Buat soal berikutnya untuk pemain ini
-    player.currentChallenge = generateChallenge();
 
     this.broadcastState("player_moved", {
       playerId: player.id,
@@ -147,7 +154,7 @@ export class GameRoom {
       move,
     });
 
-    return { roll, move, nextChallenge: player.currentChallenge };
+    return { roll, move, finished: false };
   }
 
   getState() {

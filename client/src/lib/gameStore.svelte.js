@@ -9,14 +9,19 @@ export class GameStore {
   roomState = $state(null);
   errorMessage = $state(null);
   loading = $state(false);
-  rolling = $state(false);
   leaderboard = $state([]);
   publicRooms = $state([]);
+
+  // Turn state: 'IDLE' | 'SPINNING' | 'WAITING_INPUT' | 'MOVING'
+  turnState = $state('IDLE');
+  currentChallenge = $state(null);
+  timerSeconds = $state(10);
+  timerInterval = $state(null);
 
   // Posisi pion animasi step-by-step: playerId -> displaySquare
   pawnPositions = $state({});
 
-  // Hasil lemparan terakhir yang baru saja di-roll
+  // Hasil lemparan terakhir
   latestRollInfo = $state(null);
 
   isHost = $derived(
@@ -25,10 +30,6 @@ export class GameStore {
 
   me = $derived(
     this.roomState?.players?.find((p) => p.id === this.playerId) || null
-  );
-
-  myChallenge = $derived(
-    this.me?.currentChallenge || null
   );
 
   async init() {
@@ -67,7 +68,7 @@ export class GameStore {
 
     // Step-by-step hopping
     for (let i = 0; i < path.length; i++) {
-      await new Promise((r) => setTimeout(r, 180));
+      await new Promise((r) => setTimeout(r, 190));
       this.pawnPositions[playerId] = path[i];
       audio.playStep(i);
     }
@@ -119,12 +120,13 @@ export class GameStore {
         if (state) {
           this.roomState = state;
         }
-        if (move) {
+        if (move && playerId !== this.playerId) {
+          // Hanya animasikan pemain lain (milik sendiri sudah dianimasikan langsung)
           await this.animatePawnMovement(playerId, move, roll);
         }
       } else if (event === 'game_finished') {
         if (data.state) this.roomState = data.state;
-        if (data.lastMove?.move) {
+        if (data.lastMove?.move && data.lastMove.playerId !== this.playerId) {
           await this.animatePawnMovement(data.lastMove.playerId, data.lastMove.move, data.lastMove.roll);
         }
         audio.playWin();
@@ -236,7 +238,8 @@ export class GameStore {
       if (!res.ok) throw new Error(data.error || 'Gagal memulai game');
       this.roomState = data.state;
       this.syncInitialPawnPositions(data.state.players || []);
-      // Reset positions to 1
+      this.turnState = 'IDLE';
+      this.currentChallenge = null;
       for (const p of data.state.players || []) {
         this.pawnPositions[p.id] = 1;
       }
@@ -245,16 +248,58 @@ export class GameStore {
     }
   }
 
-  async submitRoll(inputNumber) {
-    if (!this.roomCode || !this.playerId || this.rolling) return;
-    this.rolling = true;
+  // 1. User klik ROLL dulu -> Timer 10 detik mulai jalan
+  async startRoll() {
+    if (!this.roomCode || !this.playerId || this.turnState !== 'IDLE') return;
+    this.turnState = 'SPINNING';
     audio.playRoll();
+
+    try {
+      const res = await fetch(`/api/rooms/${this.roomCode}/spin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId: this.playerId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal memulai roll');
+
+      this.currentChallenge = data.challenge;
+      this.turnState = 'WAITING_INPUT';
+      this.timerSeconds = 10;
+
+      if (this.timerInterval) clearInterval(this.timerInterval);
+      this.timerInterval = setInterval(() => {
+        this.timerSeconds -= 1;
+        if (this.timerSeconds <= 0) {
+          this.stopTimer();
+          // Waktu 10 detik habis -> auto submit input saat ini (atau 0)
+          this.submitRoll(0);
+        }
+      }, 1000);
+    } catch (err) {
+      this.setError(err.message);
+      this.turnState = 'IDLE';
+    }
+  }
+
+  stopTimer() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+  }
+
+  // 2. Submit input angka dadu matematika (sebelum 10 detik atau pas timeout)
+  async submitRoll(inputNumber = 0) {
+    if (!this.roomCode || !this.playerId || this.turnState !== 'WAITING_INPUT') return;
+    this.stopTimer();
+    this.turnState = 'MOVING';
 
     try {
       const res = await fetch(`/api/rooms/${this.roomCode}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId: this.playerId, input: inputNumber }),
+        body: JSON.stringify({ playerId: this.playerId, input: Number(inputNumber) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal submit angka');
@@ -268,18 +313,22 @@ export class GameStore {
         this.roomState = data.state;
       }
 
-      // Animasi pion saya sendiri langsung berjalan
+      // Animasi pion saya sendiri melompat dari block ke block
       if (data.move) {
         await this.animatePawnMovement(this.playerId, data.move, data.roll);
       }
     } catch (err) {
       this.setError(err.message);
     } finally {
-      this.rolling = false;
+      this.currentChallenge = null;
+      if (this.roomState?.status === 'PLAYING') {
+        this.turnState = 'IDLE';
+      }
     }
   }
 
   async leaveRoom(callServer = true) {
+    this.stopTimer();
     if (callServer && this.roomCode && this.playerId) {
       try {
         await fetch(`/api/rooms/${this.roomCode}/leave`, {
@@ -296,6 +345,8 @@ export class GameStore {
     this.roomState = null;
     this.latestRollInfo = null;
     this.pawnPositions = {};
+    this.turnState = 'IDLE';
+    this.currentChallenge = null;
     localStorage.removeItem('ut_room_code');
     this.fetchPublicRooms();
   }

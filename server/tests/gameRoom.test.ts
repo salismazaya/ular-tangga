@@ -12,6 +12,9 @@ describe("GameRoom Simultaneous Loop", () => {
 
     room.startGame("ws1");
     expect(room.status).toBe("PLAYING");
+
+    const spin = room.spinRoll("ws1");
+    expect(spin.challenge).not.toBeNull();
     expect(room.players[0].currentChallenge).not.toBeNull();
   });
 

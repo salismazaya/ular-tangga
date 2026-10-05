@@ -117,13 +117,15 @@
         <!-- Inline HUD (Soal matematika, timer, status pemain) -->
         <div class="w-full max-w-[620px] lg:max-w-[420px] flex flex-col">
           <RoundHUD
-            challenge={game.myChallenge}
+            challenge={game.currentChallenge}
             status={game.roomState.status}
-            rolling={game.rolling}
+            turnState={game.turnState}
+            timerSeconds={game.timerSeconds}
             latestRoll={game.latestRollInfo}
             players={game.roomState.players || []}
             myId={game.playerId}
             winner={game.roomState.winner}
+            onStartRoll={() => game.startRoll()}
             onSubmit={(val) => game.submitRoll(val)}
           />
 

@@ -2,31 +2,35 @@
   let {
     challenge = null,
     status = 'PLAYING',
-    rolling = false,
+    turnState = 'IDLE', // 'IDLE' | 'SPINNING' | 'WAITING_INPUT' | 'MOVING'
+    timerSeconds = 10,
     latestRoll = null,
     players = [],
     myId = '',
     winner = null,
+    onStartRoll = () => {},
     onSubmit = (num) => {},
   } = $props();
 
   let inputVal = $state('');
+  let inputEl = $state(null);
 
-  // Reset input saat soal baru datang
+  // Autofocus input saat turnState masuk ke WAITING_INPUT
   $effect(() => {
-    if (challenge) {
+    if (turnState === 'WAITING_INPUT') {
       inputVal = '';
+      setTimeout(() => inputEl?.focus(), 50);
     }
   });
 
   function handleSubmit() {
-    if (rolling || status !== 'PLAYING') return;
+    if (turnState !== 'WAITING_INPUT') return;
     const num = inputVal === '' || isNaN(Number(inputVal)) ? 0 : Math.round(Number(inputVal));
     onSubmit(num);
   }
 
   function handleRandom() {
-    if (rolling || status !== 'PLAYING') return;
+    if (turnState !== 'WAITING_INPUT') return;
     const rnd = Math.floor(Math.random() * 41) - 20; // -20 s/d 20
     inputVal = String(rnd);
     onSubmit(rnd);
@@ -56,19 +60,57 @@
     </div>
 
     <span class="text-slate-400">
-      Total Lemparan: <strong class="text-slate-200 font-mono-code">{myPlayer?.rollsCount || 0}</strong>
+      Total Langkahmu: <strong class="text-slate-200 font-mono-code">{myPlayer?.rollsCount || 0}x</strong>
     </span>
   </div>
 
-  <!-- Math Challenge Form (TANPA PREVIEW LANGKAH SESUAI PERMINTAAN BOS) -->
-  {#if challenge && status === 'PLAYING'}
-    <div class="bg-slate-900/90 border border-slate-700/80 rounded-xl p-4 text-center">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-        Tantangan Dadu Matematika
+  <!-- KONDISI 1: User belum klik ROLL (IDLE) -->
+  {#if status === 'PLAYING' && turnState === 'IDLE'}
+    <div class="p-5 bg-slate-900/90 border border-slate-700/80 rounded-xl text-center">
+      <div class="text-xs font-bold text-slate-300 mb-2">Giliranmu untuk Melangkah!</div>
+      <p class="text-xs text-slate-400 mb-4 max-w-sm mx-auto">
+        Klik tombol di bawah untuk memunculkan soal dadu matematika. Kamu memiliki <strong>10 detik</strong> untuk menentukan angka dadu!
+      </p>
+
+      <button
+        onclick={onStartRoll}
+        class="w-full max-w-xs py-3.5 px-6 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 active:scale-95 text-slate-950 font-black text-base rounded-2xl shadow-xl shadow-amber-500/20 transition flex items-center justify-center gap-2 mx-auto"
+      >
+        <span>🎲 Roll Dadu Sekarang!</span>
+      </button>
+    </div>
+
+  <!-- KONDISI 2: Sedang Request Challenge (SPINNING) -->
+  {:else if status === 'PLAYING' && turnState === 'SPINNING'}
+    <div class="p-6 bg-slate-900/90 border border-slate-700/80 rounded-xl text-center">
+      <div class="animate-spin text-3xl mb-2">🎲</div>
+      <div class="text-sm font-bold text-amber-300">Menyiapkan tantangan dadu...</div>
+    </div>
+
+  <!-- KONDISI 3: Timer 10 Detik Berjalan (WAITING_INPUT) -->
+  {:else if status === 'PLAYING' && turnState === 'WAITING_INPUT' && challenge}
+    <div class="bg-slate-900/90 border-2 border-amber-500/60 rounded-xl p-4 text-center">
+      <!-- Timer Countdown Bar -->
+      <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
+        <span class="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+          Tentukan Dadu (Batas Waktu!)
+        </span>
+        <div class="flex items-center gap-2">
+          <div class="w-24 bg-slate-800 h-2 rounded-full overflow-hidden border border-slate-700">
+            <div
+              class="h-full transition-all duration-1000 ease-linear {timerSeconds <= 3 ? 'bg-rose-500' : 'bg-amber-400'}"
+              style="width: {Math.max(0, Math.min(100, (timerSeconds / 10) * 100))}%;"
+            ></div>
+          </div>
+          <span class="font-mono-code font-bold text-sm {timerSeconds <= 3 ? 'text-rose-400 animate-bounce' : 'text-amber-300'}">
+            {timerSeconds}s
+          </span>
+        </div>
       </div>
 
       <!-- Persamaan Matematika -->
-      <div class="flex items-center justify-center gap-2 sm:gap-3 text-3xl sm:text-4xl font-mono-code font-extrabold text-white my-2">
+      <div class="flex items-center justify-center gap-2 sm:gap-3 text-3xl sm:text-4xl font-mono-code font-extrabold text-white my-3">
         <span class="px-3.5 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-amber-300 shadow-inner">
           {challenge.screenNumber}
         </span>
@@ -78,8 +120,8 @@
         <div class="inline-block">
           <input
             type="number"
+            bind:this={inputEl}
             bind:value={inputVal}
-            disabled={rolling}
             placeholder="?"
             class="w-24 sm:w-28 px-2 py-1.5 text-center bg-slate-800 border-2 border-sky-400 text-sky-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-300 font-mono-code font-black text-2xl shadow-inner"
             onkeydown={(e) => e.key === 'Enter' && handleSubmit()}
@@ -88,26 +130,22 @@
 
         <span class="text-slate-500">=</span>
 
-        <span class="px-3.5 py-1.5 bg-slate-800/80 border border-slate-700 text-slate-400 rounded-xl text-xl">
+        <span class="px-3 py-1.5 bg-slate-800/80 border border-slate-700 text-slate-400 rounded-xl text-xl">
           🎲
         </span>
       </div>
 
-      <!-- Tombol Aksi Roll & Acak -->
+      <!-- Tombol Kunci Dadu & Acak -->
       <div class="mt-4 flex items-center justify-center gap-2">
         <button
           onclick={handleSubmit}
-          disabled={rolling}
-          class="flex-1 max-w-[220px] py-3 px-5 rounded-xl font-black text-sm transition-all shadow-lg shadow-sky-500/20 active:scale-95 {rolling
-            ? 'bg-slate-700 text-slate-400 cursor-wait'
-            : 'bg-gradient-to-r from-sky-400 to-sky-500 hover:from-sky-300 hover:to-sky-400 text-slate-950'}"
+          class="flex-1 max-w-[220px] py-3 px-5 rounded-xl font-black text-sm transition-all shadow-lg shadow-sky-500/20 active:scale-95 bg-gradient-to-r from-sky-400 to-sky-500 hover:from-sky-300 hover:to-sky-400 text-slate-950"
         >
-          {rolling ? '⏳ Mengocok Dadu...' : 'Kocok Dadu! 🎲'}
+          Kunci Dadu! 🔒
         </button>
 
         <button
           onclick={handleRandom}
-          disabled={rolling}
           title="Pilih angka acak (-20 s/d 20)"
           class="py-3 px-3.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 font-bold text-xs rounded-xl border border-slate-700 transition"
         >
@@ -115,15 +153,26 @@
         </button>
       </div>
     </div>
+
+  <!-- KONDISI 4: Sedang Melompat / Bergerak (MOVING) -->
+  {:else if status === 'PLAYING' && turnState === 'MOVING'}
+    <div class="p-5 bg-slate-900/90 border border-slate-700/80 rounded-xl text-center">
+      <div class="text-xs font-bold uppercase tracking-wider text-sky-400 mb-1">
+        Pion Sedang Melangkah...
+      </div>
+      <div class="text-sm text-slate-300 font-medium">
+        Memeriksa jalur kotak, tangga, dan ular! 🏃‍♂️
+      </div>
+    </div>
   {/if}
 
-  <!-- Hasil Dadu Setelah Di-Roll -->
+  <!-- Hasil Dadu Terakhir (Setelah submit) -->
   {#if latestRoll?.roll}
     {@const r = latestRoll.roll}
     {@const m = latestRoll.move}
-    <div class="mt-3 p-3 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs space-y-1 animate-fade-in">
+    <div class="mt-3 p-3 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs space-y-1">
       <div class="flex items-center justify-between">
-        <span class="text-slate-400">Hasil Lemparan:</span>
+        <span class="text-slate-400">Hasil Lemparan Terakhir:</span>
         <span class="font-mono-code font-bold text-white">
           {r.screenNumber} {r.op} {r.userInput} = <span class="text-amber-300 font-extrabold">{r.raw}</span>
         </span>
@@ -152,7 +201,7 @@
     </div>
   {/if}
 
-  <!-- Leaderboard Balapan Pemain di Room -->
+  <!-- Posisi Balapan Pemain di Room -->
   <div class="mt-3 pt-3 border-t border-slate-700/60 text-xs">
     <div class="font-bold text-slate-400 uppercase tracking-wider mb-2">Posisi Balapan Saat Ini:</div>
     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -160,7 +209,11 @@
         <div class="flex items-center justify-between p-2 bg-slate-900/60 rounded-lg border border-slate-800">
           <div class="flex items-center gap-1.5 truncate">
             <span class="text-slate-500 font-bold">#{idx + 1}</span>
-            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: {p.color};"></span>
+            {#if p.avatar}
+              <img src={p.avatar} alt="Avatar" class="w-4 h-4 rounded-full object-cover shrink-0 border border-sky-400" />
+            {:else}
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: {p.color};"></span>
+            {/if}
             <span class="font-semibold text-slate-200 truncate">{p.name}</span>
           </div>
           <span class="font-mono-code font-bold text-amber-300 shrink-0 ml-1">

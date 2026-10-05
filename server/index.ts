@@ -102,6 +102,22 @@ app.post("/api/rooms/:code/start", async (c) => {
   }
 });
 
+app.post("/api/rooms/:code/spin", async (c) => {
+  try {
+    const code = c.req.param("code");
+    const body = await c.req.json().catch(() => ({}));
+    const playerId = String(body.playerId || "");
+    const room = roomManager.getRoom(code);
+
+    if (!room) return c.json({ error: "Room tidak ditemukan" }, 404);
+
+    const result = room.spinRoll(playerId);
+    return c.json({ success: true, ...result });
+  } catch (err: any) {
+    return c.json({ error: err.message }, 400);
+  }
+});
+
 app.post("/api/rooms/:code/submit", async (c) => {
   try {
     const code = c.req.param("code");
