@@ -121,6 +121,7 @@
             status={game.roomState.status}
             turnState={game.turnState}
             timerSeconds={game.timerSeconds}
+            maxTimer={game.roomState.turnTimer || 10}
             latestRoll={game.latestRollInfo}
             players={game.roomState.players || []}
             myId={game.playerId}

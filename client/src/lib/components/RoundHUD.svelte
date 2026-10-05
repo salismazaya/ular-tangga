@@ -4,6 +4,7 @@
     status = 'PLAYING',
     turnState = 'IDLE', // 'IDLE' | 'SPINNING' | 'WAITING_INPUT' | 'MOVING'
     timerSeconds = 10,
+    maxTimer = 10,
     latestRoll = null,
     players = [],
     myId = '',
@@ -69,7 +70,7 @@
     <div class="p-5 bg-slate-900/90 border border-slate-700/80 rounded-xl text-center">
       <div class="text-xs font-bold text-slate-300 mb-2">Giliranmu untuk Melangkah!</div>
       <p class="text-xs text-slate-400 mb-4 max-w-sm mx-auto">
-        Klik tombol di bawah untuk memunculkan soal dadu matematika. Kamu memiliki <strong>10 detik</strong> untuk menentukan angka dadu!
+        Klik tombol di bawah untuk memunculkan soal dadu matematika. Kamu memiliki <strong>{maxTimer} detik</strong> untuk menentukan angka dadu!
       </p>
 
       <button
@@ -100,7 +101,7 @@
           <div class="w-24 bg-slate-800 h-2 rounded-full overflow-hidden border border-slate-700">
             <div
               class="h-full transition-all duration-1000 ease-linear {timerSeconds <= 3 ? 'bg-rose-500' : 'bg-amber-400'}"
-              style="width: {Math.max(0, Math.min(100, (timerSeconds / 10) * 100))}%;"
+              style="width: {Math.max(0, Math.min(100, (timerSeconds / (maxTimer || 10)) * 100))}%;"
             ></div>
           </div>
           <span class="font-mono-code font-bold text-sm {timerSeconds <= 3 ? 'text-rose-400 animate-bounce' : 'text-amber-300'}">

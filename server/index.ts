@@ -65,13 +65,14 @@ app.post("/api/rooms", async (c) => {
     const body = await c.req.json().catch(() => ({}));
     const name = String(body.name || "Pemain").trim();
     const avatar = body.avatar ? String(body.avatar) : null;
+    const turnTimer = [10, 20, 30].includes(Number(body.turnTimer)) ? Number(body.turnTimer) : 10;
     const playerId = crypto.randomUUID();
 
     if (avatar) {
       storeAvatar(playerId, avatar);
     }
 
-    const room = roomManager.createRoom(name, playerId, avatar);
+    const room = roomManager.createRoom(name, playerId, avatar, turnTimer);
 
     room.onGameEnd = (winnerName, rollsCount) => {
       recordMatchWin(room.code, winnerName, rollsCount);
@@ -155,7 +156,7 @@ app.post("/api/rooms/:code/start", async (c) => {
 
     if (!room) return c.json({ error: "Room tidak ditemukan" }, 404);
 
-    room.startGame(playerId);
+    await room.startGame(playerId);
     return c.json({ success: true, state: room.getState() });
   } catch (err: any) {
     return c.json({ error: err.message }, 400);
@@ -188,7 +189,7 @@ app.post("/api/rooms/:code/submit", async (c) => {
 
     if (!room) return c.json({ error: "Room tidak ditemukan" }, 404);
 
-    const result = room.submitPlayerRoll(playerId, input);
+    const result = await room.submitPlayerRoll(playerId, input);
     return c.json({ success: true, ...result, state: room.getState() });
   } catch (err: any) {
     return c.json({ error: err.message }, 400);
@@ -203,7 +204,7 @@ app.post("/api/rooms/:code/leave", async (c) => {
     const room = roomManager.getRoom(code);
 
     if (room) {
-      room.removePlayer(playerId);
+      await room.removePlayer(playerId);
       if (room.players.length === 0) {
         roomManager.removeRoom(room.code);
       }

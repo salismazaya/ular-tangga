@@ -15,7 +15,7 @@ export async function fetchPusherConfig() {
   }
 }
 
-export async function initRealtime(code, onEvent) {
+export async function initRealtime(code, handlers = {}) {
   if (typeof window === 'undefined' || !code) return null;
 
   const cfg = await fetchPusherConfig();
@@ -35,40 +35,48 @@ export async function initRealtime(code, onEvent) {
   const channelName = `room-${cleanCode}`;
 
   if (currentChannel && currentCode !== cleanCode) {
-    pusherInstance.unsubscribe(`room-${currentCode}`);
+    try {
+      pusherInstance.unsubscribe(`room-${currentCode}`);
+    } catch (e) {}
     currentChannel = null;
   }
 
   if (!currentChannel || currentCode !== cleanCode) {
     currentCode = cleanCode;
     currentChannel = pusherInstance.subscribe(channelName);
-
-    const events = [
-      'room_updated',
-      'player_joined',
-      'round_started',
-      'player_submitted',
-      'timer_tick',
-      'round_resolved',
-      'game_finished',
-      'player_left',
-    ];
-
-    events.forEach((eventName) => {
-      currentChannel.bind(eventName, (data) => {
-        if (typeof onEvent === 'function') {
-          onEvent(eventName, data);
-        }
-      });
-    });
   }
+
+  // Lepas binding lama agar tidak duplikat listener
+  try {
+    currentChannel.unbind_all();
+  } catch (e) {}
+
+  const eventMap = {
+    room_updated: handlers.onRoomUpdated,
+    player_joined: handlers.onPlayerJoined || handlers.onRoomUpdated,
+    game_started: handlers.onGameStarted,
+    player_moved: handlers.onPlayerMoved,
+    game_finished: handlers.onGameFinished,
+    player_left: handlers.onPlayerLeft || handlers.onRoomUpdated,
+  };
+
+  Object.entries(eventMap).forEach(([eventName, handler]) => {
+    if (typeof handler === 'function') {
+      currentChannel.bind(eventName, (data) => {
+        handler(data);
+      });
+    }
+  });
 
   return pusherInstance;
 }
 
 export function disconnectRealtime() {
   if (currentChannel && currentCode && pusherInstance) {
-    pusherInstance.unsubscribe(`room-${currentCode}`);
+    try {
+      currentChannel.unbind_all();
+      pusherInstance.unsubscribe(`room-${currentCode}`);
+    } catch (e) {}
     currentChannel = null;
     currentCode = null;
   }

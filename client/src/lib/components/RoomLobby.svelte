@@ -43,9 +43,12 @@
         {copied ? '✓ Tersalin' : 'Salin'}
       </button>
     </div>
-    <p class="text-[11px] text-slate-500 mt-2">
+    <p class="text-[11px] text-slate-400 mt-2">
       Bagikan kode 4 huruf ini ke temanmu agar mereka bisa bergabung!
     </p>
+    <div class="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-slate-800/80 rounded-full border border-slate-700 text-xs text-amber-300 font-bold">
+      ⏱️ Timer Giliran: {game.roomState?.turnTimer || 10} Detik
+    </div>
   </div>
 
   <!-- Players List -->

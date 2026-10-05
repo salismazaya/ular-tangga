@@ -31,13 +31,15 @@ export class GameRoom {
   code: string;
   hostId: string;
   status: "LOBBY" | "PLAYING" | "FINISHED" = "LOBBY";
+  turnTimer: number = 10;
   players: Player[] = [];
   winner: Player | null = null;
   onGameEnd?: (winnerName: string, rollsCount: number) => void;
 
-  constructor(code: string, hostName: string, hostId: string, hostAvatar?: string | null) {
+  constructor(code: string, hostName: string, hostId: string, hostAvatar?: string | null, turnTimer = 10) {
     this.code = code;
     this.hostId = hostId;
+    this.turnTimer = [10, 20, 30].includes(turnTimer) ? turnTimer : 10;
     this.addPlayer(hostName, hostId, hostAvatar);
   }
 
@@ -67,14 +69,14 @@ export class GameRoom {
     return player;
   }
 
-  removePlayer(id: string) {
+  async removePlayer(id: string) {
     this.players = this.players.filter((p) => p.id !== id);
     if (this.hostId === id && this.players.length > 0) {
       this.hostId = this.players[0].id;
     }
     try { saveRoomToDb(this); } catch (e) {}
     if (this.players.length > 0) {
-      this.broadcastState("player_left");
+      await this.broadcastState("player_left");
     }
   }
 
@@ -85,7 +87,7 @@ export class GameRoom {
     });
   }
 
-  startGame(requesterId: string) {
+  async startGame(requesterId: string) {
     if (this.hostId !== requesterId) throw new Error("Hanya host yang dapat memulai game");
     if (this.players.length < 1) throw new Error("Minimal butuh 1 pemain untuk bermain");
 
@@ -101,7 +103,7 @@ export class GameRoom {
     }
 
     try { saveRoomToDb(this); } catch (e) {}
-    this.broadcastState("game_started");
+    await this.broadcastState("game_started");
   }
 
   spinRoll(playerId: string) {
@@ -113,7 +115,7 @@ export class GameRoom {
     return { challenge: player.currentChallenge };
   }
 
-  submitPlayerRoll(playerId: string, input: number) {
+  async submitPlayerRoll(playerId: string, input: number) {
     const player = this.players.find((p) => p.id === playerId);
     if (!player) throw new Error("Pemain tidak ditemukan");
     if (this.status !== "PLAYING") throw new Error("Game belum dimulai atau sudah selesai");
@@ -142,7 +144,7 @@ export class GameRoom {
       this.winner = player;
       this.status = "FINISHED";
 
-      this.broadcastState("game_finished", {
+      await this.broadcastState("game_finished", {
         winner: { id: player.id, name: player.name, avatarUrl: player.avatar ? `/api/avatars/${player.id}` : null },
         lastMove: { playerId: player.id, move, roll },
       });
@@ -154,7 +156,7 @@ export class GameRoom {
       return { roll, move, finished: true };
     }
 
-    this.broadcastState("player_moved", {
+    await this.broadcastState("player_moved", {
       playerId: player.id,
       playerName: player.name,
       roll,
@@ -169,6 +171,7 @@ export class GameRoom {
       code: this.code,
       hostId: this.hostId,
       status: this.status,
+      turnTimer: this.turnTimer,
       players: this.players.map((p) => ({
         id: p.id,
         name: p.name,

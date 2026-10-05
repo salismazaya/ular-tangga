@@ -5,6 +5,7 @@
   let nameInput = $state(game.playerName || '');
   let joinCodeInput = $state('');
   let activeTab = $state('join');
+  let selectedTimer = $state(10); // 10 | 20 | 30
   let compressing = $state(false);
   let fileInputRef = $state(null);
 
@@ -28,7 +29,7 @@
       game.setError('Silakan isi nama kamu terlebih dahulu');
       return;
     }
-    game.createRoom(nameInput.trim());
+    game.createRoom(nameInput.trim(), selectedTimer);
   }
 
   function handleJoin() {
@@ -164,9 +165,33 @@
   {:else}
     <!-- Form Buat Room -->
     <div class="space-y-4">
+      <!-- Pilihan Durasi Timer -->
+      <div>
+        <div class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+          ⏱️ Durasi Timer Giliran (Pikir Angka)
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          {#each [10, 20, 30] as sec}
+            <button
+              type="button"
+              onclick={() => (selectedTimer = sec)}
+              class="py-2.5 px-2 rounded-xl border text-xs font-black transition flex flex-col items-center justify-center gap-0.5 {selectedTimer === sec
+                ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/20 scale-[1.02]'
+                : 'bg-slate-900/90 text-slate-300 border-slate-700 hover:border-slate-500'}"
+            >
+              <span class="text-sm font-bold">{sec} Detik</span>
+              <span class="text-[10px] font-medium opacity-80">
+                {sec === 10 ? 'Cepat ⚡' : sec === 20 ? 'Santai 🧘' : 'Tenang 🐢'}
+              </span>
+            </button>
+          {/each}
+        </div>
+      </div>
+
       <div class="p-4 bg-slate-900/60 rounded-xl border border-slate-700/60 text-xs text-slate-300 space-y-1.5">
         <div class="font-bold text-amber-300">Pengaturan Room:</div>
         <div>• Mode: Balapan Serentak (Semua pemain berlari bersamaan)</div>
+        <div>• Timer Giliran: <strong class="text-amber-300">{selectedTimer} Detik</strong></div>
         <div>• Dadu: Matematika (+ / -) menuju kotak finish 100</div>
         <div>• Rintangan: Tangga meluncur naik, Ular menggigit turun</div>
       </div>

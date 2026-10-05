@@ -14,9 +14,9 @@ export class RoomManager {
     return code;
   }
 
-  createRoom(hostName: string, hostId: string, hostAvatar?: string | null): GameRoom {
+  createRoom(hostName: string, hostId: string, hostAvatar?: string | null, turnTimer = 10): GameRoom {
     const code = this.generateCode();
-    const room = new GameRoom(code, hostName, hostId, hostAvatar);
+    const room = new GameRoom(code, hostName, hostId, hostAvatar, turnTimer);
     this.rooms.set(code, room);
     saveRoomToDb(room);
     return room;
@@ -31,7 +31,13 @@ export class RoomManager {
       // Coba pulihkan dari SQLite jika server restart / memory kosong
       const dbRoom = loadRoomFromDb(cleanCode);
       if (dbRoom) {
-        room = new GameRoom(dbRoom.code, dbRoom.players[0]?.name || "Host", dbRoom.hostId, dbRoom.players[0]?.avatar);
+        room = new GameRoom(
+          dbRoom.code,
+          dbRoom.players[0]?.name || "Host",
+          dbRoom.hostId,
+          dbRoom.players[0]?.avatar,
+          dbRoom.turnTimer || 10
+        );
         room.status = dbRoom.status;
         room.winner = dbRoom.winner;
         room.players = dbRoom.players;

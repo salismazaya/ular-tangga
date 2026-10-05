@@ -115,14 +115,24 @@ export class GameStore {
   setupRealtime(code) {
     initRealtime(code, {
       onRoomUpdated: (data) => {
-        this.roomState = data.state;
-        this.syncInitialPawnPositions(data.state.players || []);
+        if (data?.state) {
+          this.roomState = data.state;
+          this.syncInitialPawnPositions(data.state.players || []);
+        }
+      },
+      onPlayerJoined: (data) => {
+        if (data?.state) {
+          this.roomState = data.state;
+          this.syncInitialPawnPositions(data.state.players || []);
+        }
       },
       onGameStarted: (data) => {
-        this.roomState = data.state;
+        if (data?.state) {
+          this.roomState = data.state;
+          this.syncInitialPawnPositions(data.state.players || []);
+        }
         this.turnState = 'IDLE';
         this.currentChallenge = null;
-        this.syncInitialPawnPositions(data.state.players || []);
         audio.startBgm();
       },
       onPlayerMoved: async (data) => {
@@ -135,28 +145,31 @@ export class GameStore {
         // Jalankan animasi per-kotak
         await this.animatePawnMovement(data.playerId, data.move, data.roll);
 
-        if (data.state) {
+        if (data?.state) {
           this.roomState = data.state;
         }
       },
       onGameFinished: async (data) => {
-        if (data.lastMove) {
+        if (data?.lastMove) {
           await this.animatePawnMovement(data.lastMove.playerId, data.lastMove.move, data.lastMove.roll);
         }
-        if (data.state) {
+        if (data?.state) {
           this.roomState = data.state;
         }
         audio.playWin();
         this.fetchLeaderboard();
       },
       onPlayerLeft: (data) => {
-        if (data.state) this.roomState = data.state;
+        if (data?.state) {
+          this.roomState = data.state;
+        }
       },
     });
   }
 
-  async createRoom(name) {
+  async createRoom(name, turnTimer = 10) {
     const cleanName = (name || this.playerName || 'Host').trim();
+    const cleanTimer = [10, 20, 30].includes(Number(turnTimer)) ? Number(turnTimer) : 10;
     this.loading = true;
     try {
       const res = await fetch('/api/rooms', {
@@ -164,6 +177,7 @@ export class GameStore {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: cleanName,
+          turnTimer: cleanTimer,
           avatar: this.playerAvatar || null,
         }),
       });
@@ -308,7 +322,7 @@ export class GameStore {
 
       this.currentChallenge = data.challenge;
       this.turnState = 'WAITING_INPUT';
-      this.timerSeconds = 10;
+      this.timerSeconds = this.roomState?.turnTimer || 10;
 
       audio.playRoll();
 
