@@ -405,17 +405,10 @@ export class GameStore {
       this.timerInterval = null;
     }
 
-    if (callServer && this.roomCode && this.playerId) {
-      fetch(`/api/rooms/${this.roomCode}/leave`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId: this.playerId }),
-      }).catch(() => {});
-    }
+    const currentCode = this.roomCode;
+    const currentPid = this.playerId;
 
-    disconnectRealtime();
-    audio.stopBgm();
-
+    // Reset state lokal PERTAMA KALI agar tampilan langsung kembali ke LoginView tanpa delay
     this.roomCode = '';
     this.roomState = null;
     this.turnState = 'IDLE';
@@ -427,6 +420,27 @@ export class GameStore {
 
     if (typeof window !== 'undefined') {
       window.history.replaceState(null, '', window.location.pathname);
+    }
+
+    try {
+      disconnectRealtime();
+    } catch (e) {
+      console.error(e);
+    }
+
+    try {
+      audio.stopBgm();
+    } catch (e) {
+      console.error(e);
+    }
+
+    if (callServer && currentCode && currentPid) {
+      fetch(`/api/rooms/${currentCode}/leave`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId: currentPid }),
+        keepalive: true,
+      }).catch(() => {});
     }
 
     this.fetchPublicRooms();

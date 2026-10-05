@@ -63,6 +63,16 @@ class GameAudio {
     return this.bgmEnabled;
   }
 
+  startBgm() {
+    if (this.bgmEnabled && !this.bgmPlaying) {
+      this.startBgmLoop();
+    }
+  }
+
+  stopBgm() {
+    this.stopBgmLoop();
+  }
+
   // SFX: Dadu Roll
   playRoll() {
     if (!this.sfxEnabled) return;
