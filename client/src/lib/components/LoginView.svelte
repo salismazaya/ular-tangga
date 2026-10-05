@@ -6,7 +6,8 @@
   let joinCodeInput = $state('');
   let activeTab = $state('join');
   let selectedTimer = $state(10); // 10 | 20 | 30
-  let selectedRange = $state({ min: -20, max: 20 });
+  let minInput = $state(-20);
+  let maxInput = $state(20);
   let compressing = $state(false);
   let fileInputRef = $state(null);
 
@@ -18,27 +19,12 @@
   ];
 
   function isPresetActive(p) {
-    return selectedRange.min === p.min && selectedRange.max === p.max;
+    return Number(minInput) === p.min && Number(maxInput) === p.max;
   }
 
   function selectPreset(p) {
-    selectedRange = { min: p.min, max: p.max };
-  }
-
-  function adjustRange(field, delta) {
-    let newMin = selectedRange.min;
-    let newMax = selectedRange.max;
-    if (field === 'min') {
-      newMin = Math.max(-999, Math.min(newMax - 1, newMin + delta));
-    } else {
-      newMax = Math.min(999, Math.max(newMin + 1, newMax + delta));
-    }
-    selectedRange = { min: newMin, max: newMax };
-  }
-
-  function applyDraftRange(range) {
-    selectedRange = range;
-    return true;
+    minInput = p.min;
+    maxInput = p.max;
   }
 
   async function handleFileChange(event) {
@@ -61,7 +47,17 @@
       game.setError('Silakan isi nama kamu terlebih dahulu');
       return;
     }
-    game.createRoom(nameInput.trim(), selectedTimer, selectedRange);
+    const minParsed = parseInt(String(minInput), 10);
+    const maxParsed = parseInt(String(maxInput), 10);
+    const validRange = {
+      min: isNaN(minParsed) ? -20 : minParsed,
+      max: isNaN(maxParsed) ? 20 : maxParsed,
+    };
+    if (validRange.min >= validRange.max) {
+      game.setError('Batas minimum harus lebih kecil dari batas maksimum');
+      return;
+    }
+    game.createRoom(nameInput.trim(), selectedTimer, validRange);
   }
 
   function handleJoin() {
@@ -218,9 +214,9 @@
       <!-- Rentang angka soal -->
       <div>
         <div class="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-          <span>🎯 Rentang Angka Soal (Tantangan Dadu)</span>
-          <span class="font-mono-code font-black text-amber-300">
-            {selectedRange.min} s/d {selectedRange.max}
+          <span>🎯 Rentang Angka Soal</span>
+          <span class="font-mono-code font-bold text-amber-300">
+            {minInput} s/d {maxInput}
           </span>
         </div>
 
@@ -240,69 +236,31 @@
           {/each}
         </div>
 
-        <!-- Stepper Kustom (Atur Min & Max tanpa keyboard native) -->
-        <div class="p-2.5 bg-slate-900/70 border border-slate-700/60 rounded-xl space-y-2">
-          <div class="flex items-center justify-between text-[11px] font-bold text-slate-400">
-            <span>Atur Kustom:</span>
-            <span class="text-slate-500 font-mono-code">{selectedRange.max - selectedRange.min + 1} kemungkinan angka</span>
+        <!-- Input Angka Min & Max Langsung -->
+        <div class="grid grid-cols-2 gap-2 p-2.5 bg-slate-900/80 border border-slate-700/60 rounded-xl">
+          <div>
+            <label for="range-min" class="block text-[11px] font-bold text-slate-400 mb-1">
+              Batas Minimum (Min)
+            </label>
+            <input
+              id="range-min"
+              type="number"
+              bind:value={minInput}
+              class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white font-mono-code font-bold text-sm focus:border-amber-400 focus:outline-none"
+              placeholder="-20"
+            />
           </div>
-
-          <div class="grid grid-cols-2 gap-2">
-            <!-- Min Stepper -->
-            <div class="bg-slate-950/80 p-1.5 rounded-lg border border-slate-800 flex items-center justify-between">
-              <span class="text-[10px] font-bold text-slate-400 uppercase ml-1">Min</span>
-              <div class="flex items-center gap-0.5 sm:gap-1">
-                <button
-                  type="button"
-                  onclick={() => adjustRange('min', -5)}
-                  class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center justify-center active:scale-90"
-                >-5</button>
-                <button
-                  type="button"
-                  onclick={() => adjustRange('min', -1)}
-                  class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center justify-center active:scale-90"
-                >-1</button>
-                <span class="font-mono-code font-black text-white text-xs w-7 sm:w-8 text-center">{selectedRange.min}</span>
-                <button
-                  type="button"
-                  onclick={() => adjustRange('min', 1)}
-                  class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center justify-center active:scale-90"
-                >+1</button>
-                <button
-                  type="button"
-                  onclick={() => adjustRange('min', 5)}
-                  class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center justify-center active:scale-90"
-                >+5</button>
-              </div>
-            </div>
-
-            <!-- Max Stepper -->
-            <div class="bg-slate-950/80 p-1.5 rounded-lg border border-slate-800 flex items-center justify-between">
-              <span class="text-[10px] font-bold text-slate-400 uppercase ml-1">Maks</span>
-              <div class="flex items-center gap-0.5 sm:gap-1">
-                <button
-                  type="button"
-                  onclick={() => adjustRange('max', -5)}
-                  class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center justify-center active:scale-90"
-                >-5</button>
-                <button
-                  type="button"
-                  onclick={() => adjustRange('max', -1)}
-                  class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center justify-center active:scale-90"
-                >-1</button>
-                <span class="font-mono-code font-black text-white text-xs w-7 sm:w-8 text-center">{selectedRange.max}</span>
-                <button
-                  type="button"
-                  onclick={() => adjustRange('max', 1)}
-                  class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center justify-center active:scale-90"
-                >+1</button>
-                <button
-                  type="button"
-                  onclick={() => adjustRange('max', 5)}
-                  class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center justify-center active:scale-90"
-                >+5</button>
-              </div>
-            </div>
+          <div>
+            <label for="range-max" class="block text-[11px] font-bold text-slate-400 mb-1">
+              Batas Maksimum (Maks)
+            </label>
+            <input
+              id="range-max"
+              type="number"
+              bind:value={maxInput}
+              class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white font-mono-code font-bold text-sm focus:border-amber-400 focus:outline-none"
+              placeholder="20"
+            />
           </div>
         </div>
       </div>
@@ -311,7 +269,7 @@
         <div class="font-bold text-amber-300">Pengaturan Room:</div>
         <div>• Mode: Balapan Serentak (Semua pemain berlari bersamaan)</div>
         <div>• Timer Giliran: <strong class="text-amber-300">{selectedTimer} Detik</strong></div>
-        <div>• Angka soal: <strong class="text-amber-300">{selectedRange.min} sampai {selectedRange.max}</strong></div>
+        <div>• Angka soal: <strong class="text-amber-300">{minInput} sampai {maxInput}</strong></div>
         <div>• Dadu: Matematika (+ / -) menuju kotak finish 100</div>
         <div>• Rintangan: Tangga meluncur naik, Ular menggigit turun</div>
       </div>

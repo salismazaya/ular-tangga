@@ -108,7 +108,7 @@
         <!-- Papan Ular Tangga (Kiri di desktop, Atas di mobile) -->
         <div class="transition-all duration-300 ease-out w-full md:w-auto flex items-center justify-center p-0.5
           {game.turnState === 'WAITING_INPUT'
-            ? 'h-[24vh] max-h-[180px] shrink-0 md:h-full md:max-h-full md:flex-1'
+            ? 'h-[36vh] sm:h-[40vh] max-h-[290px] shrink-0 md:h-full md:max-h-full md:flex-1'
             : 'flex-1 h-[48vh] sm:h-[55vh] md:h-full max-h-full'}"
         >
           <GameBoard

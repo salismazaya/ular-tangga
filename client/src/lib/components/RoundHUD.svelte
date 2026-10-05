@@ -119,16 +119,16 @@
 
   <!-- Status Playing (HUD & Keypad Terpadu) -->
   {#if status === 'PLAYING'}
-    <div class="bg-slate-900/90 border border-slate-700/80 rounded-xl p-2 sm:p-2.5 shadow-xl">
+    <div class="bg-slate-900/90 border border-slate-700/80 rounded-xl p-1.5 sm:p-2 shadow-xl">
       {#if turnState === 'WAITING_INPUT' && challenge}
         <!-- Timer -->
-        <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-800">
-          <span class="text-[11px] font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+        <div class="flex items-center justify-between pb-1 mb-1 border-b border-slate-800/80">
+          <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>
             Tentukan Dadu
           </span>
           <div class="flex items-center gap-2">
-            <div class="w-20 sm:w-24 bg-slate-800 h-1.5 rounded-full overflow-hidden border border-slate-700">
+            <div class="w-16 sm:w-20 bg-slate-800 h-1 rounded-full overflow-hidden border border-slate-700">
               <div
                 class="h-full transition-all duration-1000 ease-linear {timerSeconds <= 3 ? 'bg-rose-500' : 'bg-amber-400'}"
                 style="width: {timerWidth()}%;"
@@ -140,21 +140,21 @@
           </div>
         </div>
 
-        <!-- Persamaan Matematika -->
-        <div class="flex items-center justify-center gap-2 text-2xl sm:text-3xl font-mono-code font-extrabold text-white my-1">
-          <span class="px-2.5 py-1 bg-slate-800 border border-slate-700 rounded-lg text-amber-300 shadow-inner">
+        <!-- Persamaan Matematika (Ramping) -->
+        <div class="flex items-center justify-center gap-1.5 sm:gap-2 text-xl sm:text-2xl font-mono-code font-extrabold text-white my-0.5">
+          <span class="px-2 py-0.5 bg-slate-800 border border-slate-700 rounded-lg text-amber-300 shadow-inner text-base sm:text-lg">
             {challenge.screenNumber}
           </span>
 
           <span class="text-slate-400 font-bold">{challenge.op}</span>
 
-          <span class="min-w-[60px] sm:min-w-[72px] px-2 py-1 text-center bg-slate-950/80 border-2 border-sky-400 text-sky-200 rounded-lg font-black">
+          <span class="min-w-[52px] sm:min-w-[60px] px-2 py-0.5 text-center bg-slate-950/80 border-2 border-sky-400 text-sky-200 rounded-lg font-black text-lg sm:text-xl">
             {inputVal === '' ? '?' : inputVal}
           </span>
 
           <span class="text-slate-500">=</span>
 
-          <span class="px-2 py-1 bg-slate-800/80 border border-slate-700 text-slate-400 rounded-lg text-base">
+          <span class="px-1.5 py-0.5 bg-slate-800/80 border border-slate-700 text-slate-400 rounded-lg text-xs sm:text-sm">
             🎲
           </span>
         </div>
@@ -171,11 +171,11 @@
       />
 
       {#if turnState === 'WAITING_INPUT'}
-        <div class="mt-1.5 flex items-center justify-between gap-2 text-[10px] sm:text-[11px]">
+        <div class="mt-1 flex items-center justify-between gap-2 text-[10px]">
           <button
             type="button"
             onclick={handleRandom}
-            class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 font-bold rounded border border-slate-700 transition"
+            class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 font-bold rounded border border-slate-700 transition"
           >
             🎲 Acak {activeRange.min}..{activeRange.max}
           </button>
