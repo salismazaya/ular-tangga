@@ -1,5 +1,5 @@
 import { Challenge, RollResult, calculateRollWithInput, generateChallenge } from "./MathDice";
-import { computeNewPosition, MoveResolution } from "./Board";
+import { computeNewPosition, MoveResolution, BoardConfig, generateRandomBoard } from "./Board";
 import { broadcast } from "../realtime";
 import { saveRoomToDb } from "../db/database";
 
@@ -17,14 +17,12 @@ export interface Player {
 }
 
 const PLAYER_COLORS = [
-  "#EF4444", // Merah
-  "#3B82F6", // Biru
-  "#10B981", // Hijau
-  "#F59E0B", // Kuning/Oranye
-  "#8B5CF6", // Ungu
-  "#EC4899", // Pink
-  "#06B6D4", // Cyan
-  "#F97316", // Oranye tua
+  "#EF4444", "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899",
+  "#06B6D4", "#F97316", "#14B8A6", "#84CC16", "#6366F1", "#D946EF",
+  "#E11D48", "#2563EB", "#059669", "#D97706", "#7C3AED", "#DB2777",
+  "#0891B2", "#EA580C", "#0D9488", "#65A30D", "#4F46E5", "#C026D3",
+  "#DC2626", "#1D4ED8", "#047857", "#B45309", "#6D28D9", "#BE185D",
+  "#0E7490", "#C2410C", "#0F766E", "#4D7C0F", "#4338CA", "#A21CAF",
 ];
 
 export class GameRoom {
@@ -32,14 +30,16 @@ export class GameRoom {
   hostId: string;
   status: "LOBBY" | "PLAYING" | "FINISHED" = "LOBBY";
   turnTimer: number = 10;
+  boardConfig: BoardConfig;
   players: Player[] = [];
   winner: Player | null = null;
   onGameEnd?: (winnerName: string, rollsCount: number) => void;
 
-  constructor(code: string, hostName: string, hostId: string, hostAvatar?: string | null, turnTimer = 10) {
+  constructor(code: string, hostName: string, hostId: string, hostAvatar?: string | null, turnTimer = 10, boardConfig?: BoardConfig) {
     this.code = code;
     this.hostId = hostId;
     this.turnTimer = [10, 20, 30].includes(turnTimer) ? turnTimer : 10;
+    this.boardConfig = boardConfig || generateRandomBoard();
     this.addPlayer(hostName, hostId, hostAvatar);
   }
 
@@ -93,6 +93,7 @@ export class GameRoom {
 
     this.status = "PLAYING";
     this.winner = null;
+    this.boardConfig = generateRandomBoard(); // Acak posisi tangga dan ular setiap match!
     for (const p of this.players) {
       p.currentSquare = 1;
       p.currentChallenge = null;
@@ -129,7 +130,7 @@ export class GameRoom {
       player.currentChallenge.op,
       input
     );
-    const move = computeNewPosition(player.currentSquare, roll.steps, roll.direction);
+    const move = computeNewPosition(player.currentSquare, roll.steps, roll.direction, this.boardConfig);
 
     player.lastRoll = roll;
     player.lastMove = move;
@@ -172,6 +173,7 @@ export class GameRoom {
       hostId: this.hostId,
       status: this.status,
       turnTimer: this.turnTimer,
+      boardConfig: this.boardConfig,
       players: this.players.map((p) => ({
         id: p.id,
         name: p.name,

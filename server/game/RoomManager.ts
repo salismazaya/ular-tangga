@@ -36,7 +36,8 @@ export class RoomManager {
           dbRoom.players[0]?.name || "Host",
           dbRoom.hostId,
           dbRoom.players[0]?.avatar,
-          dbRoom.turnTimer || 10
+          dbRoom.turnTimer || 10,
+          dbRoom.boardConfig || undefined
         );
         room.status = dbRoom.status;
         room.winner = dbRoom.winner;

@@ -1,10 +1,11 @@
 <script>
-  import { getSquareCoordinates, LADDERS, SNAKES } from '../game/Board';
+  import { getSquareCoordinates, DEFAULT_LADDERS, DEFAULT_SNAKES } from '../game/Board';
 
   let {
     players = [],
     myId = '',
     pawnPositions = {},
+    boardConfig = null,
   } = $props();
 
   // Helper koordinat cell center di viewBox 1000x1000
@@ -19,7 +20,11 @@
   // Pre-generate grid squares 1..100
   const squares = Array.from({ length: 100 }, (_, i) => i + 1);
 
-  // Group pawns by square to apply clean offset
+  // Dynamic Ladders & Snakes based on room boardConfig
+  const activeLadders = $derived(boardConfig?.ladders || DEFAULT_LADDERS);
+  const activeSnakes = $derived(boardConfig?.snakes || DEFAULT_SNAKES);
+
+  // Group pawns by square to apply clean grid layout (supports up to 30 players per square!)
   const pawnsBySquare = $derived.by(() => {
     const map = new Map();
     players.forEach((p) => {
@@ -30,339 +35,392 @@
     return map;
   });
 
-  function getPawnOffset(player, square) {
+  // Calculate dynamic position & size for up to 30 pawns on the same square
+  function getPawnLayout(player, square) {
     const list = pawnsBySquare.get(square) || [];
+    const count = list.length;
     const idx = list.findIndex((p) => p.id === player.id);
-    if (list.length <= 1 || idx === -1) return { dx: 0, dy: 0 };
 
-    const offsets = [
-      { dx: -18, dy: -18 },
-      { dx: 18, dy: -18 },
-      { dx: -18, dy: 18 },
-      { dx: 18, dy: 18 },
-      { dx: 0, dy: -24 },
-      { dx: 0, dy: 24 },
-    ];
-    return offsets[idx % offsets.length];
-  }
-
-  // Ladder SVG path generator
-  const ladderPaths = Object.entries(LADDERS).map(([start, end]) => {
-    const s = getSquareCenter(Number(start));
-    const e = getSquareCenter(Number(end));
-    const dx = e.x - s.x;
-    const dy = e.y - s.y;
-    const angle = Math.atan2(dy, dx);
-    const perpAngle = angle + Math.PI / 2;
-    const width = 14;
-
-    const ox = Math.cos(perpAngle) * width;
-    const oy = Math.sin(perpAngle) * width;
-
-    // Rungs (anak tangga)
-    const dist = Math.hypot(dx, dy);
-    const numRungs = Math.max(3, Math.floor(dist / 40));
-    const rungs = [];
-    for (let i = 1; i <= numRungs; i++) {
-      const t = i / (numRungs + 1);
-      const rx = s.x + dx * t;
-      const ry = s.y + dy * t;
-      rungs.push({
-        x1: rx - ox,
-        y1: ry - oy,
-        x2: rx + ox,
-        y2: ry + oy,
-      });
+    if (count <= 1 || idx === -1) {
+      return { dx: 0, dy: 0, radius: 22, count: 1 };
     }
 
-    return {
-      start: Number(start),
-      end: Number(end),
-      rail1: { x1: s.x - ox, y1: s.y - oy, x2: e.x - ox, y2: e.y - oy },
-      rail2: { x1: s.x + ox, y1: s.y + oy, x2: e.x + ox, y2: e.y + oy },
-      rungs,
-    };
+    // Grid layout: 2-4 -> 2x2, 5-9 -> 3x3, 10-16 -> 4x4, 17-25 -> 5x5, 26-36 -> 6x6
+    const cols = Math.ceil(Math.sqrt(count));
+    const rows = Math.ceil(count / cols);
+    const boxSize = 76; // usable box within 100x100
+    const cellW = boxSize / cols;
+    const cellH = boxSize / rows;
+    const radius = Math.max(5.5, Math.min(18, Math.min(cellW, cellH) * 0.44));
+
+    const c = idx % cols;
+    const r = Math.floor(idx / cols);
+
+    const startX = -boxSize / 2 + cellW / 2;
+    const startY = -boxSize / 2 + cellH / 2;
+
+    const dx = startX + c * cellW;
+    const dy = startY + r * cellH;
+
+    return { dx, dy, radius, count };
+  }
+
+  // Ladder SVG path generator (reactive to activeLadders)
+  const ladderPaths = $derived.by(() => {
+    return Object.entries(activeLadders).map(([start, end]) => {
+      const s = getSquareCenter(Number(start));
+      const e = getSquareCenter(Number(end));
+      const dx = e.x - s.x;
+      const dy = e.y - s.y;
+      const angle = Math.atan2(dy, dx);
+      const perpAngle = angle + Math.PI / 2;
+      const width = 14;
+
+      const ox = Math.cos(perpAngle) * width;
+      const oy = Math.sin(perpAngle) * width;
+
+      // Rungs (anak tangga)
+      const dist = Math.hypot(dx, dy);
+      const numRungs = Math.max(3, Math.floor(dist / 38));
+      const rungs = [];
+      for (let i = 1; i <= numRungs; i++) {
+        const t = i / (numRungs + 1);
+        const rx = s.x + dx * t;
+        const ry = s.y + dy * t;
+        rungs.push({
+          x1: rx - ox,
+          y1: ry - oy,
+          x2: rx + ox,
+          y2: ry + oy,
+        });
+      }
+
+      return {
+        startNum: Number(start),
+        endNum: Number(end),
+        leftRail: `M ${s.x - ox} ${s.y - oy} L ${e.x - ox} ${e.y - oy}`,
+        rightRail: `M ${s.x + ox} ${s.y + oy} L ${e.x + ox} ${e.y + oy}`,
+        rungs,
+      };
+    });
   });
 
-  // Snake SVG curve generator
-  const snakePaths = Object.entries(SNAKES).map(([head, tail]) => {
-    const h = getSquareCenter(Number(head));
-    const t = getSquareCenter(Number(tail));
-    const mx = (h.x + t.x) / 2;
-    const my = (h.y + t.y) / 2;
-    const dx = t.x - h.x;
-    const dy = t.y - h.y;
-    const waveX = mx - dy * 0.25;
-    const waveY = my + dx * 0.25;
+  // Snake SVG generator (reactive to activeSnakes)
+  const snakePaths = $derived.by(() => {
+    return Object.entries(activeSnakes).map(([head, tail]) => {
+      const h = getSquareCenter(Number(head));
+      const t = getSquareCenter(Number(tail));
+      const dx = t.x - h.x;
+      const dy = t.y - h.y;
+      const dist = Math.hypot(dx, dy);
 
-    return {
-      head: Number(head),
-      tail: Number(tail),
-      headPos: h,
-      tailPos: t,
-      d: `M ${h.x} ${h.y} Q ${waveX} ${waveY} ${t.x} ${t.y}`,
-    };
+      // Create natural wave S-curve path
+      const angle = Math.atan2(dy, dx);
+      const perp = angle + Math.PI / 2;
+      const waveAmp = Math.min(38, Math.max(18, dist * 0.16));
+
+      const cp1x = h.x + dx * 0.3 + Math.cos(perp) * waveAmp;
+      const cp1y = h.y + dy * 0.3 + Math.sin(perp) * waveAmp;
+      const cp2x = h.x + dx * 0.7 - Math.cos(perp) * waveAmp;
+      const cp2y = h.y + dy * 0.7 - Math.sin(perp) * waveAmp;
+
+      const pathData = `M ${h.x} ${h.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${t.x} ${t.y}`;
+
+      return {
+        headNum: Number(head),
+        tailNum: Number(tail),
+        pathData,
+        headPos: h,
+        tailPos: t,
+      };
+    });
+  });
+
+  // Urutkan pemain: diri sendiri (isMe) selalu di paling belakang/atas agar tidak tertutup pemain lain
+  const sortedPlayers = $derived.by(() => {
+    return [...players].sort((a, b) => {
+      if (a.id === myId) return 1;
+      if (b.id === myId) return -1;
+      return 0;
+    });
   });
 </script>
 
-<div class="w-full max-w-[620px] aspect-square mx-auto p-2 sm:p-3 bg-slate-800/90 rounded-2xl shadow-2xl border border-slate-700/60 backdrop-blur-sm">
+<div class="relative w-full max-w-[620px] aspect-square mx-auto rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-700/80 bg-slate-900 select-none">
   <svg
     viewBox="0 0 1000 1000"
-    class="w-full h-full rounded-xl overflow-hidden shadow-inner select-none"
+    class="w-full h-full block"
+    xmlns="http://www.w3.org/2000/svg"
   >
-    <!-- Background Defs & Gradients -->
     <defs>
-      <linearGradient id="ladderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#f59e0b" />
-        <stop offset="100%" stop-color="#b45309" />
+      <!-- Gradient Kotak Papan -->
+      <linearGradient id="sqLight" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#1e293b" />
+        <stop offset="100%" stop-color="#0f172a" />
       </linearGradient>
-      <linearGradient id="snakeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#10b981" />
-        <stop offset="100%" stop-color="#047857" />
+
+      <linearGradient id="sqDark" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#182234" />
+        <stop offset="100%" stop-color="#0b1120" />
       </linearGradient>
+
+      <linearGradient id="sqStart" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#065f46" />
+        <stop offset="100%" stop-color="#022c22" />
+      </linearGradient>
+
+      <linearGradient id="sqFinish" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#854d0e" />
+        <stop offset="100%" stop-color="#422006" />
+      </linearGradient>
+
+      <!-- Glow Filters -->
       <filter id="pawnGlow" x="-50%" y="-50%" width="200%" height="200%">
-        <feDropShadow dx="0" dy="4" stdDeviation="4" flood-opacity="0.5" />
+        <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000000" flood-opacity="0.6" />
       </filter>
 
-      <!-- Player Avatar Clip Paths -->
-      {#each players as p}
-        <clipPath id="avatar-clip-{p.id}">
-          <circle cx="0" cy="0" r="22" />
-        </clipPath>
-      {/each}
+      <filter id="myPawnHalo" x="-100%" y="-100%" width="300%" height="300%">
+        <feGaussianBlur stdDeviation="5" result="blur" />
+        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+      </filter>
     </defs>
 
-    <!-- 10x10 Grid Squares -->
+    <!-- 1. Grid 100 Kotak -->
     {#each squares as sq}
-      {@const coords = getSquareCoordinates(sq)}
-      {@const x = coords.col * 100}
-      {@const y = coords.row * 100}
-      {@const isEven = (coords.row + coords.col) % 2 === 0}
-      {@const isFinish = sq === 100}
+      {@const { row, col } = getSquareCoordinates(sq)}
       {@const isStart = sq === 1}
-      {@const isLadderStart = Boolean(LADDERS[sq])}
-      {@const isSnakeHead = Boolean(SNAKES[sq])}
+      {@const isFinish = sq === 100}
+      {@const isEven = (row + col) % 2 === 0}
+      {@const fillGrad = isStart ? 'url(#sqStart)' : isFinish ? 'url(#sqFinish)' : isEven ? 'url(#sqLight)' : 'url(#sqDark)'}
 
-      <g>
+      <g transform="translate({col * 100}, {row * 100})">
+        <!-- Kotak -->
         <rect
-          {x}
-          {y}
-          width="100"
-          height="100"
-          fill={isFinish
-            ? '#059669'
-            : isStart
-            ? '#3b82f6'
-            : isLadderStart
-            ? '#78350f'
-            : isSnakeHead
-            ? '#831843'
-            : isEven
-            ? '#1e293b'
-            : '#0f172a'}
-          stroke="#334155"
-          stroke-width="1.5"
-          class="transition-colors duration-200"
+          x="1"
+          y="1"
+          width="98"
+          height="98"
+          rx="12"
+          fill={fillGrad}
+          stroke={isStart ? '#10b981' : isFinish ? '#f59e0b' : '#334155'}
+          stroke-width={isStart || isFinish ? '2.5' : '1'}
+          class="transition-colors"
         />
 
         <!-- Nomor Kotak -->
         <text
-          x={x + 8}
-          y={y + 24}
-          fill={isFinish || isStart ? '#ffffff' : '#94a3b8'}
-          font-size="20"
-          font-weight="700"
-          font-family="JetBrains Mono, monospace"
+          x="10"
+          y="24"
+          fill={isStart ? '#6ee7b7' : isFinish ? '#fde047' : '#94a3b8'}
+          font-size="15"
+          font-weight="800"
+          font-family="system-ui, sans-serif"
+          opacity="0.8"
         >
           {sq}
         </text>
 
-        <!-- Label Finis / Start -->
-        {#if isFinish}
+        <!-- Keterangan START & FINISH -->
+        {#if isStart}
           <text
-            x={x + 50}
-            y={y + 64}
-            fill="#fef08a"
-            font-size="22"
-            font-weight="800"
+            x="50"
+            y="68"
+            fill="#34d399"
+            font-size="12"
+            font-weight="900"
             text-anchor="middle"
-          >
-            FINISH
-          </text>
-        {:else if isStart}
-          <text
-            x={x + 50}
-            y={y + 64}
-            fill="#bae6fd"
-            font-size="20"
-            font-weight="800"
-            text-anchor="middle"
+            letter-spacing="1"
           >
             START
           </text>
-        {:else if isLadderStart}
+        {:else if isFinish}
           <text
-            x={x + 50}
-            y={y + 80}
-            fill="#fef08a"
-            font-size="14"
-            font-weight="700"
+            x="50"
+            y="68"
+            fill="#fbbf24"
+            font-size="12"
+            font-weight="900"
             text-anchor="middle"
+            letter-spacing="1"
           >
-            ↑ KE {LADDERS[sq]}
+            FINISH 🏆
           </text>
-        {:else if isSnakeHead}
-          <text
-            x={x + 50}
-            y={y + 80}
-            fill="#fbcfe8"
-            font-size="14"
-            font-weight="700"
-            text-anchor="middle"
-          >
-            ↓ KE {SNAKES[sq]}
-          </text>
+        {/if}
+
+        <!-- Indikator Tangga / Ular di Kotak -->
+        {#if activeLadders[sq]}
+          <g transform="translate(74, 10)">
+            <circle cx="10" cy="10" r="9" fill="#0284c7" opacity="0.85" />
+            <text x="10" y="14" fill="#ffffff" font-size="10" font-weight="900" text-anchor="middle">▲</text>
+          </g>
+        {:else if activeSnakes[sq]}
+          <g transform="translate(74, 10)">
+            <circle cx="10" cy="10" r="9" fill="#dc2626" opacity="0.85" />
+            <text x="10" y="14" fill="#ffffff" font-size="10" font-weight="900" text-anchor="middle">▼</text>
+          </g>
         {/if}
       </g>
     {/each}
 
-    <!-- Tangga (Ladders) Layer -->
+    <!-- 2. Jalur Tangga (Ladders) Dinamis -->
     {#each ladderPaths as ladder}
-      <g opacity="0.92">
-        <line
-          x1={ladder.rail1.x1}
-          y1={ladder.rail1.y1}
-          x2={ladder.rail1.x2}
-          y2={ladder.rail1.y2}
-          stroke="url(#ladderGrad)"
-          stroke-width="8"
+      <g opacity="0.88">
+        <!-- Rel Kiri dan Kanan Tangga -->
+        <path
+          d={ladder.leftRail}
+          stroke="#0284c7"
+          stroke-width="5"
           stroke-linecap="round"
         />
-        <line
-          x1={ladder.rail2.x1}
-          y1={ladder.rail2.y1}
-          x2={ladder.rail2.x2}
-          y2={ladder.rail2.y2}
-          stroke="url(#ladderGrad)"
-          stroke-width="8"
+        <path
+          d={ladder.rightRail}
+          stroke="#0284c7"
+          stroke-width="5"
           stroke-linecap="round"
         />
+        <!-- Anak Tangga (Rungs) -->
         {#each ladder.rungs as rung}
           <line
             x1={rung.x1}
             y1={rung.y1}
             x2={rung.x2}
             y2={rung.y2}
-            stroke="#fef3c7"
-            stroke-width="4.5"
+            stroke="#38bdf8"
+            stroke-width="3.5"
             stroke-linecap="round"
           />
         {/each}
       </g>
     {/each}
 
-    <!-- Ular (Snakes) Layer -->
+    <!-- 3. Jalur Ular (Snakes) Dinamis -->
     {#each snakePaths as snake}
-      <g opacity="0.95">
+      <g opacity="0.9">
+        <!-- Bayangan Ular -->
         <path
-          d={snake.d}
+          d={snake.pathData}
           fill="none"
           stroke="#000000"
-          stroke-width="18"
+          stroke-width="12"
           stroke-linecap="round"
-          opacity="0.3"
-          transform="translate(4, 6)"
+          opacity="0.4"
+          transform="translate(2, 4)"
         />
+
+        <!-- Tubuh Ular Luar -->
         <path
-          d={snake.d}
+          d={snake.pathData}
           fill="none"
-          stroke="url(#snakeGrad)"
-          stroke-width="16"
+          stroke="#dc2626"
+          stroke-width="8"
           stroke-linecap="round"
         />
+
+        <!-- Motif Sisik Ular -->
         <path
-          d={snake.d}
+          d={snake.pathData}
           fill="none"
-          stroke="#a7f3d0"
-          stroke-width="10"
-          stroke-dasharray="14 14"
+          stroke="#fca5a5"
+          stroke-width="3"
+          stroke-dasharray="8 8"
           stroke-linecap="round"
-          opacity="0.8"
         />
+
+        <!-- Kepala Ular -->
         <circle
           cx={snake.headPos.x}
           cy={snake.headPos.y}
-          r="16"
-          fill="#047857"
-          stroke="#fbcfe8"
+          r="10"
+          fill="#991b1b"
+          stroke="#fecaca"
           stroke-width="2"
         />
-        <circle cx={snake.headPos.x - 5} cy={snake.headPos.y - 4} r="3" fill="#ffffff" />
-        <circle cx={snake.headPos.x + 5} cy={snake.headPos.y - 4} r="3" fill="#ffffff" />
-        <circle cx={snake.headPos.x - 5} cy={snake.headPos.y - 4} r="1.5" fill="#000000" />
-        <circle cx={snake.headPos.x + 5} cy={snake.headPos.y - 4} r="1.5" fill="#000000" />
+        <!-- Mata Ular -->
+        <circle cx={snake.headPos.x - 3} cy={snake.headPos.y - 2} r="1.5" fill="#fde047" />
+        <circle cx={snake.headPos.x + 3} cy={snake.headPos.y - 2} r="1.5" fill="#fde047" />
+
+        <!-- Ekor Ular -->
+        <circle
+          cx={snake.tailPos.x}
+          cy={snake.tailPos.y}
+          r="4.5"
+          fill="#dc2626"
+        />
       </g>
     {/each}
 
-    <!-- Pion Pemain (Pawn Layer) -->
-    {#each players as player}
+    <!-- 4. Pion Pemain (Mendukung hingga 30 pemain di kotak yang sama!) -->
+    {#each sortedPlayers as player}
       {@const sq = pawnPositions[player.id] !== undefined ? pawnPositions[player.id] : (player.currentSquare || 1)}
       {@const center = getSquareCenter(sq)}
-      {@const offset = getPawnOffset(player, sq)}
-      {@const cx = center.x + offset.dx}
-      {@const cy = center.y + offset.dy}
+      {@const layout = getPawnLayout(player, sq)}
+      {@const cx = center.x + layout.dx}
+      {@const cy = center.y + layout.dy}
       {@const isMe = player.id === myId}
       {@const initial = (player.name || 'P').charAt(0).toUpperCase()}
 
-      <!-- Animasi posisi per block dengan CSS transform -->
+      <!-- ClipPath per avatar -->
+      <clipPath id="avatar-clip-{player.id}">
+        <circle cx="0" cy="0" r={layout.radius} />
+      </clipPath>
+
       <g
-        class="transition-all duration-200 ease-out"
+        class="transition-all duration-300 ease-out cursor-pointer"
         style="transform: translate({cx}px, {cy}px);"
         filter="url(#pawnGlow)"
       >
-        <!-- Highlight Lingkaran Berputar untuk Pemain Saya -->
+        <!-- CIRI KHAS PION DIRI SENDIRI (IS_ME): Halo Emas Menyala + Animasi Denyut -->
         {#if isMe}
+          <!-- Glowing pulse outer ring -->
           <circle
             cx="0"
             cy="0"
-            r="28"
+            r={layout.radius + 6}
             fill="none"
-            stroke="#38bdf8"
+            stroke="#fbbf24"
             stroke-width="3"
-            stroke-dasharray="8 6"
-            class="animate-spin"
-            style="animation-duration: 5s;"
+            opacity="0.8"
+            class="animate-ping"
+            style="transform-origin: 0px 0px; animation-duration: 2s;"
+          />
+          <circle
+            cx="0"
+            cy="0"
+            r={layout.radius + 4}
+            fill="none"
+            stroke="#f59e0b"
+            stroke-width="2.5"
           />
         {/if}
 
-        <!-- Tubuh Pion -->
+        <!-- Lingkaran Tubuh / Border Pion -->
         <circle
           cx="0"
           cy="0"
-          r="22"
+          r={layout.radius}
           fill={player.color}
-          stroke={isMe ? '#ffffff' : '#0f172a'}
-          stroke-width={isMe ? '3' : '2'}
+          stroke={isMe ? '#fbbf24' : '#0f172a'}
+          stroke-width={isMe ? '3' : '1.5'}
         />
 
         <!-- Foto Avatar Kustom ATAU Inisial Huruf -->
         {#if player.avatarUrl || player.avatar}
           <image
             href={player.avatarUrl || player.avatar}
-            x="-22"
-            y="-22"
-            width="44"
-            height="44"
+            x={-layout.radius}
+            y={-layout.radius}
+            width={layout.radius * 2}
+            height={layout.radius * 2}
             clip-path="url(#avatar-clip-{player.id})"
             preserveAspectRatio="xMidYMid slice"
           />
         {:else}
           <text
             x="0"
-            y="7"
+            y={layout.radius * 0.35}
             fill="#ffffff"
-            font-size="18"
-            font-weight="800"
+            font-size={Math.max(8, layout.radius * 0.9)}
+            font-weight="900"
             text-anchor="middle"
             font-family="system-ui, sans-serif"
           >
@@ -370,30 +428,61 @@
           </text>
         {/if}
 
-        <!-- Label Nama Pemain -->
-        <g transform="translate(0, 32)">
-          <rect
-            x="-35"
-            y="-8"
-            width="70"
-            height="18"
-            rx="5"
-            fill="#0f172a"
-            opacity="0.88"
-            stroke="#334155"
-            stroke-width="1"
-          />
-          <text
-            x="0"
-            y="5"
-            fill="#f8fafc"
-            font-size="10"
-            font-weight="700"
-            text-anchor="middle"
-          >
-            {player.name.slice(0, 8)}
-          </text>
-        </g>
+        <!-- CIRI KHAS DIRI SENDIRI: Badge Pointer 'KAMU' di atas pion -->
+        {#if isMe}
+          <g transform="translate(0, {-layout.radius - 8})">
+            <!-- Segitiga panah ke bawah -->
+            <polygon points="-4,-2 4,-2 0,4" fill="#f59e0b" />
+            <!-- Kotak badge KAMU -->
+            <rect
+              x="-18"
+              y="-15"
+              width="36"
+              height="13"
+              rx="4"
+              fill="#f59e0b"
+              stroke="#ffffff"
+              stroke-width="1"
+            />
+            <text
+              x="0"
+              y="-6"
+              fill="#0f172a"
+              font-size="8"
+              font-weight="900"
+              text-anchor="middle"
+              font-family="system-ui, sans-serif"
+              letter-spacing="0.5"
+            >
+              KAMU
+            </text>
+          </g>
+        {:else if layout.count <= 4}
+          <!-- Label Nama Pemain lain (hanya jika kotak tidak terlalu padat <= 4) -->
+          <g transform="translate(0, {layout.radius + 10})">
+            <rect
+              x="-24"
+              y="-6"
+              width="48"
+              height="12"
+              rx="3"
+              fill="#0f172a"
+              opacity="0.9"
+              stroke="#334155"
+              stroke-width="0.8"
+            />
+            <text
+              x="0"
+              y="2.5"
+              fill="#f8fafc"
+              font-size="7.5"
+              font-weight="700"
+              text-anchor="middle"
+            >
+              {player.name.slice(0, 7)}
+            </text>
+          </g>
+        {/if}
       </g>
     {/each}
   </svg>

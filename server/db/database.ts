@@ -22,6 +22,7 @@ export function getDb(dbPath = "game.db"): Database {
     // Migrasi jika tabel rooms sudah ada dari versi sebelumnya
     try { db.run("ALTER TABLE rooms ADD COLUMN host_id TEXT NOT NULL DEFAULT '';"); } catch (e) {}
     try { db.run("ALTER TABLE rooms ADD COLUMN turn_timer INTEGER NOT NULL DEFAULT 10;"); } catch (e) {}
+    try { db.run("ALTER TABLE rooms ADD COLUMN board_config TEXT;"); } catch (e) {}
     try { db.run("ALTER TABLE rooms ADD COLUMN winner_id TEXT;"); } catch (e) {}
     try { db.run("ALTER TABLE rooms ADD COLUMN winner_name TEXT;"); } catch (e) {}
     try { db.run("ALTER TABLE rooms ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;"); } catch (e) {}
@@ -97,13 +98,14 @@ export function getAvatarFromDb(id: string): { mime: string; data: Uint8Array } 
 export function saveRoomToDb(room: any) {
   const database = getDb();
   const upsertRoom = database.prepare(`
-    INSERT INTO rooms (code, host_name, host_id, status, turn_timer, winner_id, winner_name, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    INSERT INTO rooms (code, host_name, host_id, status, turn_timer, board_config, winner_id, winner_name, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(code) DO UPDATE SET
       host_name = excluded.host_name,
       host_id = excluded.host_id,
       status = excluded.status,
       turn_timer = excluded.turn_timer,
+      board_config = excluded.board_config,
       winner_id = excluded.winner_id,
       winner_name = excluded.winner_name,
       updated_at = CURRENT_TIMESTAMP
@@ -114,6 +116,7 @@ export function saveRoomToDb(room: any) {
     room.hostId,
     room.status,
     room.turnTimer || 10,
+    room.boardConfig ? JSON.stringify(room.boardConfig) : null,
     room.winner?.id || null,
     room.winner?.name || null
   );
@@ -154,11 +157,17 @@ export function loadRoomFromDb(code: string): any | null {
     .prepare("SELECT * FROM room_players WHERE room_code = ?")
     .all(cleanCode) as any[];
 
+  let parsedBoard = null;
+  if (roomRow.board_config) {
+    try { parsedBoard = JSON.parse(roomRow.board_config); } catch (e) {}
+  }
+
   return {
     code: roomRow.code,
     hostId: roomRow.host_id,
     status: roomRow.status,
     turnTimer: roomRow.turn_timer || 10,
+    boardConfig: parsedBoard,
     winner: roomRow.winner_id
       ? { id: roomRow.winner_id, name: roomRow.winner_name }
       : null,

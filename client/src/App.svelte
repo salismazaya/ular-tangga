@@ -111,6 +111,7 @@
             players={game.roomState.players || []}
             myId={game.playerId}
             pawnPositions={game.pawnPositions}
+            boardConfig={game.roomState.boardConfig}
           />
         </div>
 
@@ -128,16 +129,33 @@
             winner={game.roomState.winner}
             onStartRoll={() => game.startRoll()}
             onSubmit={(val) => game.submitRoll(val)}
+            onLeave={() => game.leaveRoom()}
           />
 
-          {#if game.roomState.status === 'FINISHED' && game.isHost}
-            <div class="mt-4 p-4 bg-slate-900/90 border border-slate-700 rounded-2xl text-center">
-              <button
-                onclick={() => game.startGame()}
-                class="w-full py-3 bg-amber-400 hover:bg-amber-300 font-extrabold text-slate-950 text-sm rounded-xl transition shadow-lg shadow-amber-400/20"
-              >
-                Mulai Game Baru 🔁
-              </button>
+          {#if game.roomState.status === 'FINISHED'}
+            <div class="mt-4 p-5 bg-slate-900/95 border-2 border-amber-400/50 rounded-2xl text-center space-y-3 shadow-2xl">
+              <div class="text-sm font-black text-amber-300">
+                🎉 Permainan Telah Selesai!
+              </div>
+
+              <div class="flex flex-col sm:flex-row gap-2.5 justify-center">
+                {#if game.isHost}
+                  <button
+                    onclick={() => game.startGame()}
+                    disabled={game.loading}
+                    class="flex-1 py-3 px-4 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 font-black text-slate-950 text-sm rounded-xl transition shadow-lg shadow-amber-400/20 active:scale-95"
+                  >
+                    🔁 Main Lagi (Papan Baru)
+                  </button>
+                {/if}
+
+                <button
+                  onclick={() => game.leaveRoom()}
+                  class="flex-1 py-3 px-4 bg-slate-800 hover:bg-rose-600/30 hover:text-rose-200 border border-slate-700 hover:border-rose-500/50 text-slate-200 font-extrabold text-sm rounded-xl transition active:scale-95"
+                >
+                  🚪 Keluar ke Menu Utama
+                </button>
+              </div>
             </div>
           {/if}
         </div>

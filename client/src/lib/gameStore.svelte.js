@@ -66,22 +66,30 @@ export class GameStore {
   async animatePawnMovement(playerId, move, roll) {
     if (!move) return;
     const path = move.path || [];
+    const isMe = playerId === this.playerId;
 
     // Step-by-step hopping
     for (let i = 0; i < path.length; i++) {
       await new Promise((r) => setTimeout(r, 190));
       this.pawnPositions[playerId] = path[i];
-      audio.playStep(i);
+      // Hanya bunyikan langkah untuk pemain lokal (diri sendiri)
+      if (isMe) {
+        audio.playStep(i);
+      }
     }
 
     // Tangga atau Ular
     if (move.isLadder) {
       await new Promise((r) => setTimeout(r, 260));
-      audio.playLadder();
+      if (isMe) {
+        audio.playLadder();
+      }
       this.pawnPositions[playerId] = move.targetSquare;
     } else if (move.isSnake) {
       await new Promise((r) => setTimeout(r, 260));
-      audio.playSnake();
+      if (isMe) {
+        audio.playSnake();
+      }
       this.pawnPositions[playerId] = move.targetSquare;
     } else {
       this.pawnPositions[playerId] = move.targetSquare;

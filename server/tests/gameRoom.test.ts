@@ -23,7 +23,8 @@ describe("GameRoom Simultaneous Loop", () => {
     room.addPlayer("Bob", "p2");
     await room.startGame("p1");
 
-    // Force known challenge for determinism
+    // Force known challenge and board for determinism
+    room.boardConfig = { ladders: { 4: 14 }, snakes: {} };
     const alice = room.players.find((p) => p.id === "p1")!;
     alice.currentChallenge = { screenNumber: 10, op: "+" };
 

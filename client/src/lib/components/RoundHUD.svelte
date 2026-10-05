@@ -11,6 +11,7 @@
     winner = null,
     onStartRoll = () => {},
     onSubmit = (num) => {},
+    onLeave = () => {},
   } = $props();
 
   let inputVal = $state('');
@@ -43,9 +44,15 @@
 <div class="w-full max-w-[620px] mx-auto mt-3 bg-slate-800/90 border border-slate-700 rounded-2xl p-4 shadow-xl backdrop-blur-sm">
   <!-- Winner Announcement -->
   {#if status === 'FINISHED' && winner}
-    <div class="p-4 bg-emerald-500/20 border border-emerald-500/50 rounded-xl text-center mb-3 animate-pulse">
+    <div class="p-4 bg-emerald-500/20 border border-emerald-500/50 rounded-xl text-center mb-3">
       <div class="text-xs uppercase tracking-wider font-extrabold text-emerald-400">JUARA 1 MENCAPAI KOTAK 100! 🏆</div>
       <div class="text-2xl font-black text-white mt-1">{winner.name}</div>
+      <button
+        onclick={onLeave}
+        class="mt-3 px-4 py-2 bg-slate-900/80 hover:bg-slate-900 text-rose-300 hover:text-rose-200 border border-rose-500/40 font-bold text-xs rounded-xl transition"
+      >
+        🚪 Keluar ke Menu Utama
+      </button>
     </div>
   {/if}
 

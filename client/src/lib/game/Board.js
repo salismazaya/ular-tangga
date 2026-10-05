@@ -1,6 +1,6 @@
 export const BOARD_SIZE = 100;
 
-export const LADDERS = {
+export const DEFAULT_LADDERS = {
   4: 14,
   9: 31,
   20: 38,
@@ -11,7 +11,7 @@ export const LADDERS = {
   71: 91,
 };
 
-export const SNAKES = {
+export const DEFAULT_SNAKES = {
   17: 7,
   54: 34,
   62: 19,
@@ -22,7 +22,7 @@ export const SNAKES = {
   99: 78,
 };
 
-export function computeNewPosition(currentSquare, steps, direction) {
+export function computeNewPosition(currentSquare, steps, direction, boardConfig = null) {
   if (direction === "STAY" || steps === 0) {
     return {
       fromSquare: currentSquare,
@@ -69,12 +69,15 @@ export function computeNewPosition(currentSquare, steps, direction) {
   let isSnake = false;
   let target = intermediate;
 
-  if (LADDERS[intermediate]) {
+  const ladders = boardConfig?.ladders || DEFAULT_LADDERS;
+  const snakes = boardConfig?.snakes || DEFAULT_SNAKES;
+
+  if (ladders[intermediate]) {
     isLadder = true;
-    target = LADDERS[intermediate];
-  } else if (SNAKES[intermediate]) {
+    target = ladders[intermediate];
+  } else if (snakes[intermediate]) {
     isSnake = true;
-    target = SNAKES[intermediate];
+    target = snakes[intermediate];
   }
 
   return {
