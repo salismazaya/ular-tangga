@@ -1,4 +1,5 @@
 import { GameRoom } from "./GameRoom";
+import { saveRoomToDb, loadRoomFromDb, removeRoomFromDb } from "../db/database";
 
 export class RoomManager {
   private rooms: Map<string, GameRoom> = new Map();
@@ -17,16 +18,41 @@ export class RoomManager {
     const code = this.generateCode();
     const room = new GameRoom(code, hostName, hostId, hostAvatar);
     this.rooms.set(code, room);
+    saveRoomToDb(room);
     return room;
   }
 
   getRoom(code: string): GameRoom | undefined {
     if (!code) return undefined;
-    return this.rooms.get(code.toUpperCase().trim());
+    const cleanCode = code.toUpperCase().trim();
+    let room = this.rooms.get(cleanCode);
+
+    if (!room) {
+      // Coba pulihkan dari SQLite jika server restart / memory kosong
+      const dbRoom = loadRoomFromDb(cleanCode);
+      if (dbRoom) {
+        room = new GameRoom(dbRoom.code, dbRoom.players[0]?.name || "Host", dbRoom.hostId, dbRoom.players[0]?.avatar);
+        room.status = dbRoom.status;
+        room.winner = dbRoom.winner;
+        room.players = dbRoom.players;
+        this.rooms.set(cleanCode, room);
+      }
+    }
+
+    return room;
+  }
+
+  persistRoom(room: GameRoom) {
+    saveRoomToDb(room);
   }
 
   removeRoom(code: string) {
-    this.rooms.delete(code.toUpperCase().trim());
+    const cleanCode = code.toUpperCase().trim();
+    const room = this.getRoom(cleanCode);
+    if (room) {
+      this.rooms.delete(cleanCode);
+      removeRoomFromDb(cleanCode);
+    }
   }
 
   listPublicRooms(): Array<{ code: string; playerCount: number; status: string; hostName: string }> {

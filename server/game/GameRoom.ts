@@ -1,6 +1,7 @@
 import { Challenge, RollResult, calculateRollWithInput, generateChallenge } from "./MathDice";
 import { computeNewPosition, MoveResolution } from "./Board";
 import { broadcast } from "../realtime";
+import { saveRoomToDb } from "../db/database";
 
 export interface Player {
   id: string;
@@ -44,6 +45,7 @@ export class GameRoom {
     const existing = this.players.find((p) => p.id === id);
     if (existing) {
       if (avatar) existing.avatar = avatar;
+      try { saveRoomToDb(this); } catch (e) {}
       return existing;
     }
 
@@ -61,6 +63,7 @@ export class GameRoom {
       rollsCount: 0,
     };
     this.players.push(player);
+    try { saveRoomToDb(this); } catch (e) {}
     return player;
   }
 
@@ -69,6 +72,7 @@ export class GameRoom {
     if (this.hostId === id && this.players.length > 0) {
       this.hostId = this.players[0].id;
     }
+    try { saveRoomToDb(this); } catch (e) {}
     if (this.players.length > 0) {
       this.broadcastState("player_left");
     }
@@ -96,6 +100,7 @@ export class GameRoom {
       p.rollsCount = 0;
     }
 
+    try { saveRoomToDb(this); } catch (e) {}
     this.broadcastState("game_started");
   }
 
@@ -129,6 +134,8 @@ export class GameRoom {
     player.currentSquare = move.targetSquare;
     player.rollsCount += 1;
     player.currentChallenge = null;
+
+    try { saveRoomToDb(this); } catch (e) {}
 
     if (move.finished && !this.winner) {
       player.isWinner = true;

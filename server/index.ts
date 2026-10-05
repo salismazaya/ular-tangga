@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { serveStatic } from "hono/bun";
 import { roomManager } from "./game/RoomManager";
-import { initDatabase, getLeaderboard, recordMatchWin } from "./db/database";
+import { initDatabase, getLeaderboard, recordMatchWin, saveAvatarToDb, getAvatarFromDb } from "./db/database";
 import { getPusherConfig } from "./realtime";
 
 initDatabase("game.db");
@@ -11,7 +11,7 @@ const app = new Hono();
 
 app.use("/api/*", cors());
 
-// Avatar in-memory store to prevent huge base64 strings in Pusher payloads
+// Avatar in-memory cache to prevent huge base64 strings in Pusher payloads
 const avatarStore = new Map<string, { buffer: Uint8Array; mime: string }>();
 
 function storeAvatar(playerId: string, dataUrl: string | null) {
@@ -19,8 +19,13 @@ function storeAvatar(playerId: string, dataUrl: string | null) {
   const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
   if (match) {
     const mime = match[1];
-    const buffer = Buffer.from(match[2], "base64");
-    avatarStore.set(playerId, { buffer: new Uint8Array(buffer), mime });
+    const buffer = new Uint8Array(Buffer.from(match[2], "base64"));
+    avatarStore.set(playerId, { buffer, mime });
+    try {
+      saveAvatarToDb(playerId, mime, buffer);
+    } catch (e) {
+      console.error("Gagal simpan avatar ke DB", e);
+    }
   }
 }
 
@@ -37,7 +42,14 @@ app.get("/api/pusher-config", (c) => {
 
 app.get("/api/avatars/:id", (c) => {
   const id = c.req.param("id");
-  const item = avatarStore.get(id);
+  let item = avatarStore.get(id);
+  if (!item) {
+    const dbItem = getAvatarFromDb(id);
+    if (dbItem) {
+      item = { buffer: dbItem.data, mime: dbItem.mime };
+      avatarStore.set(id, item);
+    }
+  }
   if (!item) return c.notFound();
   c.header("Content-Type", item.mime);
   c.header("Cache-Control", "public, max-age=86400");
@@ -86,6 +98,23 @@ app.post("/api/rooms/:code/join", async (c) => {
     if (!room) {
       return c.json({ error: `Room ${code.toUpperCase()} tidak ditemukan` }, 404);
     }
+
+    const reqPlayerId = body.playerId ? String(body.playerId) : null;
+    if (reqPlayerId) {
+      const existing = room.players.find((p) => p.id === reqPlayerId);
+      if (existing) {
+        if (avatar) {
+          storeAvatar(existing.id, avatar);
+          existing.avatar = avatar;
+        }
+        return c.json({
+          roomCode: room.code,
+          playerId: existing.id,
+          state: room.getState(),
+        });
+      }
+    }
+
     if (room.status !== "LOBBY") {
       return c.json({ error: "Game di room ini sudah berlangsung" }, 400);
     }
