@@ -1,0 +1,22 @@
+{
+  "name": "ular-tangga-multiplayer",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev:server": "bun run --watch server/index.ts",
+    "dev:client": "cd client && bun run dev",
+    "build:client": "cd client && bun run build",
+    "build": "bun run build:client",
+    "start": "bun run server/index.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.5",
+    "hono": "^4.7.0",
+    "pusher": "^5.3.4"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.5.0"
+  }
+}

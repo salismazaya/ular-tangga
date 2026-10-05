@@ -1,0 +1,9 @@
+node_modules/
+client/node_modules/
+client/dist/
+.env
+game.db
+game.db-journal
+game.db-wal
+game.db-shm
+.DS_Store
