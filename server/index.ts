@@ -3,13 +3,44 @@ import { cors } from "hono/cors";
 import { serveStatic } from "hono/bun";
 import { roomManager } from "./game/RoomManager";
 import { initDatabase, getLeaderboard, recordMatchWin, saveAvatarToDb, getAvatarFromDb } from "./db/database";
-import { getPusherConfig } from "./realtime";
+import { upgradeWebSocket, websocket, registerSocket, unregisterSocket } from "./realtime";
 
 initDatabase("game.db");
 
 const app = new Hono();
 
 app.use("/api/*", cors());
+
+// Native WebSocket endpoint bawaan Bun + Hono
+app.get(
+  "/ws",
+  upgradeWebSocket((c) => {
+    const code = c.req.query("code") || "";
+    const playerId = c.req.query("playerId") || "";
+
+    return {
+      onOpen(event, ws) {
+        if (code) {
+          registerSocket(code, ws, playerId);
+        }
+      },
+      onMessage(event, ws) {
+        try {
+          const raw = typeof event.data === "string" ? event.data : event.data.toString();
+          const msg = JSON.parse(raw);
+          if (msg.type === "ping") {
+            ws.send(JSON.stringify({ type: "pong" }));
+          } else if (msg.type === "subscribe" && msg.code) {
+            registerSocket(msg.code, ws, msg.playerId);
+          }
+        } catch (e) {}
+      },
+      onClose(event, ws) {
+        unregisterSocket(ws);
+      },
+    };
+  })
+);
 
 // Avatar in-memory cache to prevent huge base64 strings in Pusher payloads
 const avatarStore = new Map<string, { buffer: Uint8Array; mime: string }>();
@@ -225,4 +256,5 @@ export { app };
 export default {
   port,
   fetch: app.fetch,
+  websocket,
 };

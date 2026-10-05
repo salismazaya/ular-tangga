@@ -1,52 +1,53 @@
-import Pusher from "pusher";
+import { createBunWebSocket } from "hono/bun";
 
-let client: Pusher | null = null;
-let warned = false;
+export const { upgradeWebSocket, websocket } = createBunWebSocket();
 
-export function getPusherConfig() {
-  return {
-    appId: process.env.PUSHER_APP_ID || "",
-    key: process.env.PUSHER_KEY || "",
-    secret: process.env.PUSHER_SECRET || "",
-    cluster: process.env.PUSHER_CLUSTER || "ap1",
-  };
-}
+// roomCode -> Set of active WebSocket instances
+const roomSockets = new Map<string, Set<any>>();
+// WebSocket -> metadata { code, playerId }
+const socketMeta = new WeakMap<any, { code: string; playerId?: string }>();
 
-export function isPusherReady() {
-  const cfg = getPusherConfig();
-  return Boolean(cfg.appId && cfg.key && cfg.secret && cfg.cluster);
-}
+export function registerSocket(code: string, ws: any, playerId?: string) {
+  const cleanCode = code.toUpperCase().trim();
+  if (!cleanCode) return;
 
-export function getClient(): Pusher | null {
-  if (client) return client;
-  if (!isPusherReady()) {
-    if (!warned) {
-      console.warn("[PUSHER] Credential belum lengkap, broadcast realtime pusher dinonaktifkan.");
-      warned = true;
-    }
-    return null;
+  if (!roomSockets.has(cleanCode)) {
+    roomSockets.set(cleanCode, new Set());
   }
-  const cfg = getPusherConfig();
-  client = new Pusher({
-    appId: cfg.appId,
-    key: cfg.key,
-    secret: cfg.secret,
-    cluster: cfg.cluster,
-    useTLS: true,
-  });
-  return client;
+  roomSockets.get(cleanCode)!.add(ws);
+  socketMeta.set(ws, { code: cleanCode, playerId });
 }
 
-export function roomChannel(code: string) {
-  return `room-${String(code).toUpperCase().trim()}`;
+export function unregisterSocket(ws: any) {
+  const meta = socketMeta.get(ws);
+  if (!meta) return;
+
+  const set = roomSockets.get(meta.code);
+  if (set) {
+    set.delete(ws);
+    if (set.size === 0) {
+      roomSockets.delete(meta.code);
+    }
+  }
 }
 
 export async function broadcast(code: string, event: string, data: any) {
-  const pusher = getClient();
-  if (!pusher) return;
-  try {
-    await pusher.trigger(roomChannel(code), event, data);
-  } catch (err: any) {
-    console.error(`[PUSHER] Gagal kirim ${event} ke ${roomChannel(code)}:`, err.message);
+  const cleanCode = code.toUpperCase().trim();
+  const set = roomSockets.get(cleanCode);
+  if (!set || set.size === 0) return;
+
+  const payload = JSON.stringify({ event, ...data });
+  const deadSockets: any[] = [];
+
+  for (const client of set) {
+    try {
+      client.send(payload);
+    } catch (err) {
+      deadSockets.push(client);
+    }
+  }
+
+  for (const dead of deadSockets) {
+    set.delete(dead);
   }
 }

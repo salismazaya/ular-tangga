@@ -172,7 +172,7 @@ export class GameStore {
           this.roomState = data.state;
         }
       },
-    });
+    }, this.playerId);
   }
 
   async createRoom(name, turnTimer = 10) {

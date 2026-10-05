@@ -1,83 +1,113 @@
-import Pusher from 'pusher-js';
+let activeWs = null;
+let activeCode = null;
+let pingInterval = null;
+let reconnectTimer = null;
+let currentHandlers = {};
 
-let pusherInstance = null;
-let currentChannel = null;
-let currentCode = null;
-
-export async function fetchPusherConfig() {
-  try {
-    const res = await fetch('/api/pusher-config');
-    if (!res.ok) return null;
-    return await res.json();
-  } catch (err) {
-    console.error('[REALTIME] Gagal memuat config Pusher:', err);
-    return null;
-  }
-}
-
-export async function initRealtime(code, handlers = {}) {
+export function initRealtime(code, handlers = {}, playerId = '') {
   if (typeof window === 'undefined' || !code) return null;
 
-  const cfg = await fetchPusherConfig();
-  if (!cfg?.key) {
-    console.warn('[REALTIME] Pusher key tidak tersedia.');
-    return null;
-  }
-
-  if (!pusherInstance) {
-    pusherInstance = new Pusher(cfg.key, {
-      cluster: cfg.cluster || 'ap1',
-      forceTLS: true,
-    });
-  }
-
   const cleanCode = String(code).toUpperCase().trim();
-  const channelName = `room-${cleanCode}`;
+  currentHandlers = handlers;
 
-  if (currentChannel && currentCode !== cleanCode) {
+  // Jika sudah terhubung ke room yang sama dan socket OPEN, cukup update handler
+  if (activeWs && activeWs.readyState === WebSocket.OPEN && activeCode === cleanCode) {
+    return activeWs;
+  }
+
+  disconnectRealtime();
+  activeCode = cleanCode;
+
+  function connect() {
+    if (!activeCode || activeCode !== cleanCode) return;
+
     try {
-      pusherInstance.unsubscribe(`room-${currentCode}`);
-    } catch (e) {}
-    currentChannel = null;
-  }
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const pid = playerId || localStorage.getItem('ut_player_id') || '';
+      const wsUrl = `${protocol}//${window.location.host}/ws?code=${encodeURIComponent(cleanCode)}&playerId=${encodeURIComponent(pid)}`;
 
-  if (!currentChannel || currentCode !== cleanCode) {
-    currentCode = cleanCode;
-    currentChannel = pusherInstance.subscribe(channelName);
-  }
+      const ws = new WebSocket(wsUrl);
+      activeWs = ws;
 
-  // Lepas binding lama agar tidak duplikat listener
-  try {
-    currentChannel.unbind_all();
-  } catch (e) {}
+      ws.onopen = () => {
+        // Mulai ping interval tiap 15 detik agar koneksi tetap hidup
+        if (pingInterval) clearInterval(pingInterval);
+        pingInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 15000);
+      };
 
-  const eventMap = {
-    room_updated: handlers.onRoomUpdated,
-    player_joined: handlers.onPlayerJoined || handlers.onRoomUpdated,
-    game_started: handlers.onGameStarted,
-    player_moved: handlers.onPlayerMoved,
-    game_finished: handlers.onGameFinished,
-    player_left: handlers.onPlayerLeft || handlers.onRoomUpdated,
-  };
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'pong') return;
 
-  Object.entries(eventMap).forEach(([eventName, handler]) => {
-    if (typeof handler === 'function') {
-      currentChannel.bind(eventName, (data) => {
-        handler(data);
-      });
+          const eventName = data.event;
+          const h = currentHandlers;
+          if (!h) return;
+
+          if (eventName === 'room_updated' && typeof h.onRoomUpdated === 'function') {
+            h.onRoomUpdated(data);
+          } else if (eventName === 'player_joined') {
+            if (typeof h.onPlayerJoined === 'function') h.onPlayerJoined(data);
+            else if (typeof h.onRoomUpdated === 'function') h.onRoomUpdated(data);
+          } else if (eventName === 'game_started' && typeof h.onGameStarted === 'function') {
+            h.onGameStarted(data);
+          } else if (eventName === 'player_moved' && typeof h.onPlayerMoved === 'function') {
+            h.onPlayerMoved(data);
+          } else if (eventName === 'game_finished' && typeof h.onGameFinished === 'function') {
+            h.onGameFinished(data);
+          } else if (eventName === 'player_left') {
+            if (typeof h.onPlayerLeft === 'function') h.onPlayerLeft(data);
+            else if (typeof h.onRoomUpdated === 'function') h.onRoomUpdated(data);
+          }
+        } catch (err) {
+          console.error('[WS PARSE ERROR]', err);
+        }
+      };
+
+      ws.onclose = () => {
+        if (pingInterval) {
+          clearInterval(pingInterval);
+          pingInterval = null;
+        }
+
+        // Auto-reconnect jika masih di room yang sama
+        if (activeCode === cleanCode) {
+          reconnectTimer = setTimeout(connect, 2000);
+        }
+      };
+
+      ws.onerror = () => {
+        // onclose akan terpanggil otomatis untuk penanganan reconnect
+      };
+    } catch (err) {
+      console.error('[WS CONNECT ERROR]', err);
     }
-  });
+  }
 
-  return pusherInstance;
+  connect();
+  return activeWs;
 }
 
 export function disconnectRealtime() {
-  if (currentChannel && currentCode && pusherInstance) {
-    try {
-      currentChannel.unbind_all();
-      pusherInstance.unsubscribe(`room-${currentCode}`);
-    } catch (e) {}
-    currentChannel = null;
-    currentCode = null;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
   }
+  if (pingInterval) {
+    clearInterval(pingInterval);
+    pingInterval = null;
+  }
+  if (activeWs) {
+    activeWs.onclose = null;
+    try {
+      activeWs.close();
+    } catch (e) {}
+    activeWs = null;
+  }
+  activeCode = null;
+  currentHandlers = {};
 }
