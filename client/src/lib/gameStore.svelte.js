@@ -132,6 +132,10 @@ export class GameStore {
         if (data?.state) {
           this.roomState = data.state;
           this.syncInitialPawnPositions(data.state.players || []);
+          const newPlayer = data.state.players?.[data.state.players.length - 1];
+          if (newPlayer && newPlayer.id !== this.playerId) {
+            audio.playJoin();
+          }
         }
       },
       onGameStarted: (data) => {

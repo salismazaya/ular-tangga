@@ -8,15 +8,16 @@ export function initRealtime(code, handlers = {}, playerId = '') {
   if (typeof window === 'undefined' || !code) return null;
 
   const cleanCode = String(code).toUpperCase().trim();
-  currentHandlers = handlers;
 
   // Jika sudah terhubung ke room yang sama dan socket OPEN, cukup update handler
   if (activeWs && activeWs.readyState === WebSocket.OPEN && activeCode === cleanCode) {
+    currentHandlers = handlers;
     return activeWs;
   }
 
   disconnectRealtime();
   activeCode = cleanCode;
+  currentHandlers = handlers;
 
   function connect() {
     if (!activeCode || activeCode !== cleanCode) return;

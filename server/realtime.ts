@@ -16,6 +16,7 @@ export function registerSocket(code: string, ws: any, playerId?: string) {
   }
   roomSockets.get(cleanCode)!.add(ws);
   socketMeta.set(ws, { code: cleanCode, playerId });
+  console.log(`[WS REG] Room: ${cleanCode} has ${roomSockets.get(cleanCode)!.size} sockets (added pid: ${playerId})`);
 }
 
 export function unregisterSocket(ws: any) {
@@ -25,6 +26,7 @@ export function unregisterSocket(ws: any) {
   const set = roomSockets.get(meta.code);
   if (set) {
     set.delete(ws);
+    console.log(`[WS UNREG] Room: ${meta.code} now has ${set.size} sockets`);
     if (set.size === 0) {
       roomSockets.delete(meta.code);
     }
@@ -34,6 +36,7 @@ export function unregisterSocket(ws: any) {
 export async function broadcast(code: string, event: string, data: any) {
   const cleanCode = code.toUpperCase().trim();
   const set = roomSockets.get(cleanCode);
+  console.log(`[WS BROADCAST] Room: ${cleanCode} event: ${event} recipientCount: ${set?.size || 0}`);
   if (!set || set.size === 0) return;
 
   const payload = JSON.stringify({ event, ...data });
@@ -42,7 +45,9 @@ export async function broadcast(code: string, event: string, data: any) {
   for (const client of set) {
     try {
       client.send(payload);
+      console.log(`[WS SENT] Delivered ${event} to a socket in room ${cleanCode}`);
     } catch (err) {
+      console.error(`[WS SEND ERROR] in room ${cleanCode}:`, err);
       deadSockets.push(client);
     }
   }
