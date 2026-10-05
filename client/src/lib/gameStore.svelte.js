@@ -1,5 +1,6 @@
 import { initRealtime, disconnectRealtime } from './realtime';
 import { audio } from './audio';
+import { sanitizeNumberRange, DEFAULT_NUMBER_RANGE } from './game/MathDice';
 
 export class GameStore {
   playerName = $state(localStorage.getItem('ut_player_name') || '');
@@ -154,15 +155,17 @@ export class GameStore {
           move: data.move,
         };
 
-        // Jalankan animasi per-kotak
-        await this.animatePawnMovement(data.playerId, data.move, data.roll);
+        // Hindari animasi ganda: langkah pion lokal sudah dianimasikan langsung di submitRoll
+        if (data.playerId !== this.playerId) {
+          await this.animatePawnMovement(data.playerId, data.move, data.roll);
+        }
 
         if (data?.state) {
           this.roomState = data.state;
         }
       },
       onGameFinished: async (data) => {
-        if (data?.lastMove) {
+        if (data?.lastMove && data.lastMove.playerId !== this.playerId) {
           await this.animatePawnMovement(data.lastMove.playerId, data.lastMove.move, data.lastMove.roll);
         }
         if (data?.state) {
@@ -179,9 +182,10 @@ export class GameStore {
     }, this.playerId);
   }
 
-  async createRoom(name, turnTimer = 10) {
+  async createRoom(name, turnTimer = 10, numberRange = DEFAULT_NUMBER_RANGE) {
     const cleanName = (name || this.playerName || 'Host').trim();
     const cleanTimer = [10, 20, 30].includes(Number(turnTimer)) ? Number(turnTimer) : 10;
+    const cleanRange = sanitizeNumberRange(numberRange);
     this.loading = true;
     try {
       const res = await fetch('/api/rooms', {
@@ -190,6 +194,7 @@ export class GameStore {
         body: JSON.stringify({
           name: cleanName,
           turnTimer: cleanTimer,
+          numberRange: cleanRange,
           avatar: this.playerAvatar || null,
         }),
       });
@@ -323,6 +328,7 @@ export class GameStore {
     if (this.turnState !== 'IDLE' || !this.roomCode || !this.playerId) return;
 
     this.turnState = 'SPINNING';
+    this.currentChallenge = null;
     try {
       const res = await fetch(`/api/rooms/${this.roomCode}/spin`, {
         method: 'POST',
@@ -338,7 +344,6 @@ export class GameStore {
 
       audio.playRoll();
 
-      // Mulai timer mundur 10 detik
       if (this.timerInterval) clearInterval(this.timerInterval);
       this.timerInterval = setInterval(() => {
         if (this.turnState !== 'WAITING_INPUT') {
@@ -349,8 +354,8 @@ export class GameStore {
         this.timerSeconds -= 1;
         if (this.timerSeconds <= 0) {
           clearInterval(this.timerInterval);
-          // Waktu habis! Otomatis submit input saat ini (atau 0)
-          this.submitRoll(0);
+          // Waktu habis: lempar angka apa adanya, biar server yang menilai
+          this.submitRoll(null, { auto: true });
         }
       }, 1000);
     } catch (err) {
@@ -359,24 +364,24 @@ export class GameStore {
     }
   }
 
-  // Submit hasil input angka dadu
+  // Kirim angka dadu ke server. Jawaban yang sudah dikunci tidak dibatalkan oleh habisnya waktu.
   async submitRoll(inputVal) {
+    if (this.turnState !== 'WAITING_INPUT' || !this.roomCode || !this.playerId) return;
+
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
       this.timerInterval = null;
     }
-
-    if (this.turnState === 'MOVING') return;
     this.turnState = 'MOVING';
 
     try {
-      const parsed = parseInt(String(inputVal || 0), 10) || 0;
+      const payload = inputVal === null || inputVal === undefined ? null : Number(inputVal);
       const res = await fetch(`/api/rooms/${this.roomCode}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           playerId: this.playerId,
-          input: parsed,
+          input: Number.isFinite(payload) ? payload : null,
         }),
       });
 
@@ -389,7 +394,6 @@ export class GameStore {
         move: data.move,
       };
 
-      // Jalankan animasi per-kotak pion kita sendiri
       await this.animatePawnMovement(this.playerId, data.move, data.roll);
 
       if (data.state) {
@@ -400,6 +404,25 @@ export class GameStore {
     } finally {
       this.currentChallenge = null;
       this.turnState = 'IDLE';
+    }
+  }
+
+  async setNumberRange(range) {
+    if (!this.roomCode || !this.playerId) return false;
+    const cleanRange = sanitizeNumberRange(range);
+    try {
+      const res = await fetch(`/api/rooms/${this.roomCode}/range`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId: this.playerId, numberRange: cleanRange }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menyimpan rentang angka');
+      if (data.state) this.roomState = data.state;
+      return true;
+    } catch (err) {
+      this.setError(err.message);
+      return false;
     }
   }
 

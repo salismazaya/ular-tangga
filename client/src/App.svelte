@@ -23,9 +23,9 @@
   }
 </script>
 
-<main class="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-amber-400 selection:text-slate-900">
+<main class="{game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-screen'} bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-amber-400 selection:text-slate-900">
   <!-- Top Navigation Header -->
-  <header class="w-full border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40 px-3 sm:px-4 py-2.5">
+  <header class="w-full border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40 px-3 sm:px-4 {game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'py-1 sm:py-1.5' : 'py-2.5'} shrink-0">
     <div class="max-w-6xl mx-auto flex items-center justify-between">
       <!-- Title -->
       <div class="flex items-center gap-2">
@@ -95,7 +95,7 @@
   {/if}
 
   <!-- Main View Container -->
-  <div class="flex-1 w-full max-w-6xl mx-auto p-3 sm:p-6 flex flex-col justify-center">
+  <div class="flex-1 min-h-0 w-full max-w-7xl mx-auto {game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'p-1 sm:p-2 flex flex-col justify-center overflow-hidden' : 'p-3 sm:p-6 flex flex-col justify-center'}">
     {#if !game.roomCode || !game.roomState}
       <!-- Login & Room Selection View -->
       <LoginView />
@@ -103,10 +103,14 @@
       <!-- Room Waiting Lobby -->
       <RoomLobby />
     {:else}
-      <!-- Game Arena (Simultaneous Race) -->
-      <div class="w-full flex flex-col lg:flex-row items-center lg:items-start justify-center gap-6">
-        <!-- Papan Ular Tangga -->
-        <div class="w-full max-w-[620px]">
+      <!-- Game Arena (Simultaneous Race - Zero Scroll) -->
+      <div class="w-full h-full flex-1 min-h-0 flex flex-col md:flex-row items-center justify-center gap-2 sm:gap-4 overflow-hidden">
+        <!-- Papan Ular Tangga (Kiri di desktop, Atas di mobile) -->
+        <div class="transition-all duration-300 ease-out w-full md:w-auto flex items-center justify-center p-0.5
+          {game.turnState === 'WAITING_INPUT'
+            ? 'h-[24vh] max-h-[180px] shrink-0 md:h-full md:max-h-full md:flex-1'
+            : 'flex-1 h-[48vh] sm:h-[55vh] md:h-full max-h-full'}"
+        >
           <GameBoard
             players={game.roomState.players || []}
             myId={game.playerId}
@@ -115,8 +119,8 @@
           />
         </div>
 
-        <!-- Inline HUD (Soal matematika, timer, status pemain) -->
-        <div class="w-full max-w-[620px] lg:max-w-[420px] flex flex-col">
+        <!-- Kontrol Terpadu & Keypad (Kanan di desktop, Bawah di mobile) -->
+        <div class="w-full md:w-[350px] lg:w-[390px] shrink-0 max-h-full flex flex-col justify-center overflow-y-auto no-scrollbar px-1">
           <RoundHUD
             challenge={game.currentChallenge}
             status={game.roomState.status}
@@ -127,33 +131,36 @@
             players={game.roomState.players || []}
             myId={game.playerId}
             winner={game.roomState.winner}
+            numberRange={game.roomState.numberRange}
+            isHost={game.isHost}
             onStartRoll={() => game.startRoll()}
             onSubmit={(val) => game.submitRoll(val)}
             onLeave={() => game.leaveRoom()}
+            onRangeApply={(range) => game.setNumberRange(range)}
           />
 
           {#if game.roomState.status === 'FINISHED'}
-            <div class="mt-4 p-5 bg-slate-900/95 border-2 border-amber-400/50 rounded-2xl text-center space-y-3 shadow-2xl">
-              <div class="text-sm font-black text-amber-300">
+            <div class="mt-2 p-2.5 bg-slate-900/95 border-2 border-amber-400/50 rounded-xl text-center space-y-2 shadow-2xl">
+              <div class="text-xs font-black text-amber-300">
                 🎉 Permainan Telah Selesai!
               </div>
 
-              <div class="flex flex-col sm:flex-row gap-2.5 justify-center">
+              <div class="flex gap-2 justify-center">
                 {#if game.isHost}
                   <button
                     onclick={() => game.startGame()}
                     disabled={game.loading}
-                    class="flex-1 py-3 px-4 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 font-black text-slate-950 text-sm rounded-xl transition shadow-lg shadow-amber-400/20 active:scale-95"
+                    class="flex-1 py-1.5 px-3 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 font-black text-slate-950 text-xs rounded-lg transition shadow-lg shadow-amber-400/20 active:scale-95"
                   >
-                    🔁 Main Lagi (Papan Baru)
+                    🔁 Main Lagi
                   </button>
                 {/if}
 
                 <button
                   onclick={() => game.leaveRoom()}
-                  class="flex-1 py-3 px-4 bg-slate-800 hover:bg-rose-600/30 hover:text-rose-200 border border-slate-700 hover:border-rose-500/50 text-slate-200 font-extrabold text-sm rounded-xl transition active:scale-95"
+                  class="flex-1 py-1.5 px-3 bg-slate-800 hover:bg-rose-600/30 hover:text-rose-200 border border-slate-700 hover:border-rose-500/50 text-slate-200 font-extrabold text-xs rounded-lg transition active:scale-95"
                 >
-                  🚪 Keluar ke Menu Utama
+                  🚪 Keluar
                 </button>
               </div>
             </div>
@@ -163,8 +170,10 @@
     {/if}
   </div>
 
-  <!-- Footer -->
-  <footer class="w-full py-3 text-center text-xs text-slate-600 border-t border-slate-900">
-    Game Ular Tangga Matematika • Balapan Serentak Realtime
-  </footer>
+  <!-- Footer (Hanya saat di luar permainan) -->
+  {#if !game.roomCode || game.roomState?.status === 'LOBBY'}
+    <footer class="w-full py-3 text-center text-xs text-slate-600 border-t border-slate-900 shrink-0">
+      Game Ular Tangga Matematika • Balapan Serentak Realtime
+    </footer>
+  {/if}
 </main>

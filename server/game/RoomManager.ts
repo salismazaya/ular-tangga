@@ -1,4 +1,5 @@
 import { GameRoom } from "./GameRoom";
+import { NumberRange } from "./MathDice";
 import { saveRoomToDb, loadRoomFromDb, removeRoomFromDb } from "../db/database";
 
 export class RoomManager {
@@ -14,9 +15,9 @@ export class RoomManager {
     return code;
   }
 
-  createRoom(hostName: string, hostId: string, hostAvatar?: string | null, turnTimer = 10): GameRoom {
+  createRoom(hostName: string, hostId: string, hostAvatar?: string | null, turnTimer = 10, numberRange?: NumberRange): GameRoom {
     const code = this.generateCode();
-    const room = new GameRoom(code, hostName, hostId, hostAvatar, turnTimer);
+    const room = new GameRoom(code, hostName, hostId, hostAvatar, turnTimer, undefined, numberRange);
     this.rooms.set(code, room);
     saveRoomToDb(room);
     return room;
@@ -37,7 +38,8 @@ export class RoomManager {
           dbRoom.hostId,
           dbRoom.players[0]?.avatar,
           dbRoom.turnTimer || 10,
-          dbRoom.boardConfig || undefined
+          dbRoom.boardConfig || undefined,
+          dbRoom.numberRange || undefined
         );
         room.status = dbRoom.status;
         room.winner = dbRoom.winner;

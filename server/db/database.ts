@@ -26,6 +26,7 @@ export function getDb(dbPath = "game.db"): Database {
     try { db.run("ALTER TABLE rooms ADD COLUMN winner_id TEXT;"); } catch (e) {}
     try { db.run("ALTER TABLE rooms ADD COLUMN winner_name TEXT;"); } catch (e) {}
     try { db.run("ALTER TABLE rooms ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;"); } catch (e) {}
+    try { db.run("ALTER TABLE rooms ADD COLUMN number_range TEXT;"); } catch (e) {}
     db.run(`
       CREATE TABLE IF NOT EXISTS room_players (
         room_code TEXT NOT NULL,
@@ -98,14 +99,15 @@ export function getAvatarFromDb(id: string): { mime: string; data: Uint8Array } 
 export function saveRoomToDb(room: any) {
   const database = getDb();
   const upsertRoom = database.prepare(`
-    INSERT INTO rooms (code, host_name, host_id, status, turn_timer, board_config, winner_id, winner_name, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    INSERT INTO rooms (code, host_name, host_id, status, turn_timer, board_config, number_range, winner_id, winner_name, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(code) DO UPDATE SET
       host_name = excluded.host_name,
       host_id = excluded.host_id,
       status = excluded.status,
       turn_timer = excluded.turn_timer,
       board_config = excluded.board_config,
+      number_range = excluded.number_range,
       winner_id = excluded.winner_id,
       winner_name = excluded.winner_name,
       updated_at = CURRENT_TIMESTAMP
@@ -117,6 +119,7 @@ export function saveRoomToDb(room: any) {
     room.status,
     room.turnTimer || 10,
     room.boardConfig ? JSON.stringify(room.boardConfig) : null,
+    room.numberRange ? JSON.stringify(room.numberRange) : null,
     room.winner?.id || null,
     room.winner?.name || null
   );
@@ -162,12 +165,18 @@ export function loadRoomFromDb(code: string): any | null {
     try { parsedBoard = JSON.parse(roomRow.board_config); } catch (e) {}
   }
 
+  let parsedRange = null;
+  if (roomRow.number_range) {
+    try { parsedRange = JSON.parse(roomRow.number_range); } catch (e) {}
+  }
+
   return {
     code: roomRow.code,
     hostId: roomRow.host_id,
     status: roomRow.status,
     turnTimer: roomRow.turn_timer || 10,
     boardConfig: parsedBoard,
+    numberRange: parsedRange,
     winner: roomRow.winner_id
       ? { id: roomRow.winner_id, name: roomRow.winner_name }
       : null,

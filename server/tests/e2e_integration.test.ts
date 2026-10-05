@@ -17,7 +17,6 @@ describe("E2E Server & API Integration", () => {
   });
 
   it("handles room lifecycle: create, join, and start", async () => {
-    // 1. Create Room
     const createRes = await app.request("/api/rooms", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -32,7 +31,6 @@ describe("E2E Server & API Integration", () => {
     const roomCode = createData.roomCode;
     const hostId = createData.playerId;
 
-    // 2. Join Room
     const joinRes = await app.request(`/api/rooms/${roomCode}/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -42,9 +40,6 @@ describe("E2E Server & API Integration", () => {
     const joinData = await joinRes.json();
     expect(joinData.state.players.length).toBe(2);
 
-    const joinerId = joinData.playerId;
-
-    // 3. Start Game
     const startRes = await app.request(`/api/rooms/${roomCode}/start`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -54,7 +49,6 @@ describe("E2E Server & API Integration", () => {
     const startData = await startRes.json();
     expect(startData.state.status).toBe("PLAYING");
 
-    // 4. Submit Roll for host
     const submitHost = await app.request(`/api/rooms/${roomCode}/submit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -65,7 +59,111 @@ describe("E2E Server & API Integration", () => {
     expect(submitHostData.success).toBe(true);
     expect(submitHostData.roll).toBeDefined();
     expect(submitHostData.move).toBeDefined();
-    expect(submitHostData.move.path).toBeDefined();
     expect(Array.isArray(submitHostData.move.path)).toBe(true);
+  });
+
+  it("stores a custom number range and uses it for new challenges", async () => {
+    const createRes = await app.request("/api/rooms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Host", numberRange: { min: 100, max: 105 } }),
+    });
+    const { roomCode, playerId } = await createRes.json();
+    expect(roomCode).toBeDefined();
+
+    const stateRes = await app.request(`/api/rooms/${roomCode}`);
+    const state = (await stateRes.json()).state;
+    expect(state.numberRange).toEqual({ min: 100, max: 105 });
+
+    await app.request(`/api/rooms/${roomCode}/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId }),
+    });
+
+    const spinRes = await app.request(`/api/rooms/${roomCode}/spin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId }),
+    });
+    const { challenge } = await spinRes.json();
+    expect(challenge.screenNumber).toBeGreaterThanOrEqual(100);
+    expect(challenge.screenNumber).toBeLessThanOrEqual(105);
+  });
+
+  it("only lets the host change the range, and not while playing", async () => {
+    const createRes = await app.request("/api/rooms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Host" }),
+    });
+    const created = await createRes.json();
+    const { roomCode, playerId } = created;
+
+    const joinRes = await app.request(`/api/rooms/${roomCode}/join`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Teman" }),
+    });
+    const guestId = (await joinRes.json()).playerId;
+
+    const guestTry = await app.request(`/api/rooms/${roomCode}/range`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId: guestId, numberRange: { min: 0, max: 5 } }),
+    });
+    expect(guestTry.status).toBe(400);
+
+    const hostTry = await app.request(`/api/rooms/${roomCode}/range`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId, numberRange: { min: 0, max: 5 } }),
+    });
+    expect(hostTry.status).toBe(200);
+    expect((await hostTry.json()).numberRange).toEqual({ min: 0, max: 5 });
+
+    await app.request(`/api/rooms/${roomCode}/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId }),
+    });
+
+    const whilePlaying = await app.request(`/api/rooms/${roomCode}/range`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId, numberRange: { min: 1, max: 3 } }),
+    });
+    expect(whilePlaying.status).toBe(400);
+  });
+
+  it("resolves a missing input as an automatic roll", async () => {
+    const createRes = await app.request("/api/rooms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Auto" }),
+    });
+    const { roomCode, playerId } = await createRes.json();
+
+    await app.request(`/api/rooms/${roomCode}/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId }),
+    });
+
+    await app.request(`/api/rooms/${roomCode}/spin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId }),
+    });
+
+    const submitRes = await app.request(`/api/rooms/${roomCode}/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId, input: null }),
+    });
+    expect(submitRes.status).toBe(200);
+    const data = await submitRes.json();
+    expect(data.roll.auto).toBe(true);
+    expect(data.roll.userInput).toBe(0);
   });
 });

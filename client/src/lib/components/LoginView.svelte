@@ -6,8 +6,40 @@
   let joinCodeInput = $state('');
   let activeTab = $state('join');
   let selectedTimer = $state(10); // 10 | 20 | 30
+  let selectedRange = $state({ min: -20, max: 20 });
   let compressing = $state(false);
   let fileInputRef = $state(null);
+
+  const RANGE_PRESETS = [
+    { label: 'Mudah 🟢', min: 1, max: 10, desc: '1 s/d 10 (positif)' },
+    { label: 'Sedang 🧘', min: -10, max: 10, desc: '-10 s/d 10' },
+    { label: 'Klasik ⚡', min: -20, max: 20, desc: '-20 s/d 20 (default)' },
+    { label: 'Tantangan 🧠', min: -50, max: 50, desc: '-50 s/d 50' },
+  ];
+
+  function isPresetActive(p) {
+    return selectedRange.min === p.min && selectedRange.max === p.max;
+  }
+
+  function selectPreset(p) {
+    selectedRange = { min: p.min, max: p.max };
+  }
+
+  function adjustRange(field, delta) {
+    let newMin = selectedRange.min;
+    let newMax = selectedRange.max;
+    if (field === 'min') {
+      newMin = Math.max(-999, Math.min(newMax - 1, newMin + delta));
+    } else {
+      newMax = Math.min(999, Math.max(newMin + 1, newMax + delta));
+    }
+    selectedRange = { min: newMin, max: newMax };
+  }
+
+  function applyDraftRange(range) {
+    selectedRange = range;
+    return true;
+  }
 
   async function handleFileChange(event) {
     const file = event.target.files?.[0];
@@ -29,7 +61,7 @@
       game.setError('Silakan isi nama kamu terlebih dahulu');
       return;
     }
-    game.createRoom(nameInput.trim(), selectedTimer);
+    game.createRoom(nameInput.trim(), selectedTimer, selectedRange);
   }
 
   function handleJoin() {
@@ -46,7 +78,6 @@
 </script>
 
 <div class="max-w-md w-full mx-auto bg-slate-800/90 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-md">
-  <!-- Header -->
   <div class="text-center mb-6">
     <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-500 to-sky-400 text-slate-950 font-black text-2xl shadow-lg mb-3">
       🎲
@@ -59,9 +90,8 @@
     </p>
   </div>
 
-  <!-- Foto Avatar & Input Nama -->
+  <!-- Avatar & Nama -->
   <div class="mb-5 space-y-4">
-    <!-- Avatar Upload Section -->
     <div class="flex items-center gap-4 p-3 bg-slate-900/70 border border-slate-700/60 rounded-2xl">
       <button type="button" class="relative group cursor-pointer focus:outline-none" onclick={() => fileInputRef?.click()}>
         <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-sky-400 bg-slate-800 flex items-center justify-center shadow-md">
@@ -97,7 +127,6 @@
       </div>
     </div>
 
-    <!-- Input Nama -->
     <div>
       <label for="pname" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
         Nama Panggilan
@@ -113,7 +142,7 @@
     </div>
   </div>
 
-  <!-- Tabs Navigation -->
+  <!-- Tabs -->
   <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-900/80 rounded-xl mb-5 border border-slate-700/50">
     <button
       onclick={() => (activeTab = 'join')}
@@ -130,7 +159,6 @@
   </div>
 
   {#if activeTab === 'join'}
-    <!-- Form Gabung Room -->
     <div class="space-y-4">
       <div>
         <label for="rcode" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
@@ -163,9 +191,8 @@
       </button>
     </div>
   {:else}
-    <!-- Form Buat Room -->
     <div class="space-y-4">
-      <!-- Pilihan Durasi Timer -->
+      <!-- Timer giliran -->
       <div>
         <div class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
           ⏱️ Durasi Timer Giliran (Pikir Angka)
@@ -188,10 +215,103 @@
         </div>
       </div>
 
+      <!-- Rentang angka soal -->
+      <div>
+        <div class="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+          <span>🎯 Rentang Angka Soal (Tantangan Dadu)</span>
+          <span class="font-mono-code font-black text-amber-300">
+            {selectedRange.min} s/d {selectedRange.max}
+          </span>
+        </div>
+
+        <!-- 4 Pilihan Preset Cepat -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mb-2">
+          {#each RANGE_PRESETS as preset}
+            <button
+              type="button"
+              onclick={() => selectPreset(preset)}
+              class="py-2 px-1.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 {isPresetActive(preset)
+                ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/20 scale-[1.02]'
+                : 'bg-slate-900/90 text-slate-300 border-slate-700 hover:border-slate-500'}"
+            >
+              <span class="font-mono-code font-black text-xs">{preset.min} .. {preset.max}</span>
+              <span class="text-[10px] font-medium opacity-80">{preset.label}</span>
+            </button>
+          {/each}
+        </div>
+
+        <!-- Stepper Kustom (Atur Min & Max tanpa keyboard native) -->
+        <div class="p-2.5 bg-slate-900/70 border border-slate-700/60 rounded-xl space-y-2">
+          <div class="flex items-center justify-between text-[11px] font-bold text-slate-400">
+            <span>Atur Kustom:</span>
+            <span class="text-slate-500 font-mono-code">{selectedRange.max - selectedRange.min + 1} kemungkinan angka</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <!-- Min Stepper -->
+            <div class="bg-slate-950/80 p-1.5 rounded-lg border border-slate-800 flex items-center justify-between">
+              <span class="text-[10px] font-bold text-slate-400 uppercase ml-1">Min</span>
+              <div class="flex items-center gap-0.5 sm:gap-1">
+                <button
+                  type="button"
+                  onclick={() => adjustRange('min', -5)}
+                  class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center justify-center active:scale-90"
+                >-5</button>
+                <button
+                  type="button"
+                  onclick={() => adjustRange('min', -1)}
+                  class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center justify-center active:scale-90"
+                >-1</button>
+                <span class="font-mono-code font-black text-white text-xs w-7 sm:w-8 text-center">{selectedRange.min}</span>
+                <button
+                  type="button"
+                  onclick={() => adjustRange('min', 1)}
+                  class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center justify-center active:scale-90"
+                >+1</button>
+                <button
+                  type="button"
+                  onclick={() => adjustRange('min', 5)}
+                  class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center justify-center active:scale-90"
+                >+5</button>
+              </div>
+            </div>
+
+            <!-- Max Stepper -->
+            <div class="bg-slate-950/80 p-1.5 rounded-lg border border-slate-800 flex items-center justify-between">
+              <span class="text-[10px] font-bold text-slate-400 uppercase ml-1">Maks</span>
+              <div class="flex items-center gap-0.5 sm:gap-1">
+                <button
+                  type="button"
+                  onclick={() => adjustRange('max', -5)}
+                  class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center justify-center active:scale-90"
+                >-5</button>
+                <button
+                  type="button"
+                  onclick={() => adjustRange('max', -1)}
+                  class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center justify-center active:scale-90"
+                >-1</button>
+                <span class="font-mono-code font-black text-white text-xs w-7 sm:w-8 text-center">{selectedRange.max}</span>
+                <button
+                  type="button"
+                  onclick={() => adjustRange('max', 1)}
+                  class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center justify-center active:scale-90"
+                >+1</button>
+                <button
+                  type="button"
+                  onclick={() => adjustRange('max', 5)}
+                  class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center justify-center active:scale-90"
+                >+5</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="p-4 bg-slate-900/60 rounded-xl border border-slate-700/60 text-xs text-slate-300 space-y-1.5">
         <div class="font-bold text-amber-300">Pengaturan Room:</div>
         <div>• Mode: Balapan Serentak (Semua pemain berlari bersamaan)</div>
         <div>• Timer Giliran: <strong class="text-amber-300">{selectedTimer} Detik</strong></div>
+        <div>• Angka soal: <strong class="text-amber-300">{selectedRange.min} sampai {selectedRange.max}</strong></div>
         <div>• Dadu: Matematika (+ / -) menuju kotak finish 100</div>
         <div>• Rintangan: Tangga meluncur naik, Ular menggigit turun</div>
       </div>
@@ -210,11 +330,10 @@
     </div>
   {/if}
 
-  <!-- Aturan Ringkas Dadu Matematika -->
   <div class="mt-6 pt-5 border-t border-slate-700/60">
     <div class="text-[11px] text-slate-400 leading-relaxed bg-slate-900/40 p-3 rounded-xl border border-slate-800">
       <span class="font-bold text-slate-200">Cara Dadu Bekerja:</span>
-      Layar memberikan angka acak dan operator (<code class="text-amber-300">+</code> atau <code class="text-amber-300">-</code>). Masukkan angkamu. Hasil kalkulasi menentukan jumlah langkah:
+      Layar memberikan angka acak dan operator (<code class="text-amber-300">+</code> atau <code class="text-amber-300">-</code>). Masukkan angkamu lewat keypad di layar. Hasil kalkulasi menentukan jumlah langkah:
       <span class="text-emerald-400 font-semibold">Positif = Maju</span>,
       <span class="text-rose-400 font-semibold">Negatif = Mundur</span>,
       <span class="text-slate-300 font-semibold">0 = Diam</span>.
@@ -222,7 +341,6 @@
     </div>
   </div>
 
-  <!-- Leaderboard & Active Rooms Drawer Link -->
   <div class="mt-4 flex items-center justify-between text-xs text-slate-400">
     <button
       onclick={() => {
@@ -244,7 +362,6 @@
     </button>
   </div>
 
-  <!-- Modal/Section Room Publik -->
   {#if activeTab === 'rooms'}
     <div class="mt-4 p-3 bg-slate-900/90 rounded-xl border border-slate-700 text-xs">
       <div class="font-bold text-slate-200 mb-2 flex items-center justify-between">
@@ -277,7 +394,6 @@
     </div>
   {/if}
 
-  <!-- Modal/Section Leaderboard -->
   {#if activeTab === 'leaderboard'}
     <div class="mt-4 p-3 bg-slate-900/90 rounded-xl border border-slate-700 text-xs">
       <div class="font-bold text-slate-200 mb-2 flex items-center justify-between">

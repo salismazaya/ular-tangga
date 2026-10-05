@@ -1,4 +1,12 @@
-import { Challenge, RollResult, calculateRollWithInput, generateChallenge } from "./MathDice";
+import {
+  Challenge,
+  RollResult,
+  resolveRoll,
+  generateChallenge,
+  sanitizeNumberRange,
+  DEFAULT_NUMBER_RANGE,
+  NumberRange,
+} from "./MathDice";
 import { computeNewPosition, MoveResolution, BoardConfig, generateRandomBoard } from "./Board";
 import { broadcast } from "../realtime";
 import { saveRoomToDb } from "../db/database";
@@ -30,17 +38,35 @@ export class GameRoom {
   hostId: string;
   status: "LOBBY" | "PLAYING" | "FINISHED" = "LOBBY";
   turnTimer: number = 10;
+  numberRange: NumberRange = { ...DEFAULT_NUMBER_RANGE };
   boardConfig: BoardConfig;
   players: Player[] = [];
   winner: Player | null = null;
   onGameEnd?: (winnerName: string, rollsCount: number) => void;
 
-  constructor(code: string, hostName: string, hostId: string, hostAvatar?: string | null, turnTimer = 10, boardConfig?: BoardConfig) {
+  constructor(
+    code: string,
+    hostName: string,
+    hostId: string,
+    hostAvatar?: string | null,
+    turnTimer = 10,
+    boardConfig?: BoardConfig,
+    numberRange?: NumberRange
+  ) {
     this.code = code;
     this.hostId = hostId;
     this.turnTimer = [10, 20, 30].includes(turnTimer) ? turnTimer : 10;
+    this.numberRange = sanitizeNumberRange(numberRange);
     this.boardConfig = boardConfig || generateRandomBoard();
     this.addPlayer(hostName, hostId, hostAvatar);
+  }
+
+  setNumberRange(range: NumberRange, requesterId: string) {
+    if (this.hostId !== requesterId) throw new Error("Hanya host yang dapat mengubah rentang angka");
+    if (this.status === "PLAYING") throw new Error("Rentang angka tidak bisa diubah saat pertandingan berjalan");
+    this.numberRange = sanitizeNumberRange(range);
+    try { saveRoomToDb(this); } catch (e) {}
+    return this.numberRange;
   }
 
   addPlayer(name: string, id: string, avatar?: string | null): Player {
@@ -112,27 +138,29 @@ export class GameRoom {
     if (!player) throw new Error("Pemain tidak ditemukan");
     if (this.status !== "PLAYING") throw new Error("Game belum dimulai atau sudah selesai");
 
-    player.currentChallenge = generateChallenge();
+    player.currentChallenge = generateChallenge(this.numberRange);
     return { challenge: player.currentChallenge };
   }
 
-  async submitPlayerRoll(playerId: string, input: number) {
+  async submitPlayerRoll(playerId: string, input: number | null) {
     const player = this.players.find((p) => p.id === playerId);
     if (!player) throw new Error("Pemain tidak ditemukan");
     if (this.status !== "PLAYING") throw new Error("Game belum dimulai atau sudah selesai");
 
     if (!player.currentChallenge) {
-      player.currentChallenge = generateChallenge();
+      player.currentChallenge = generateChallenge(this.numberRange);
     }
 
-    const roll = calculateRollWithInput(
+    // input null / di luar batas = waktu habis atau angka tidak sah: server yang memutuskan
+    const { roll, auto } = resolveRoll(
       player.currentChallenge.screenNumber,
       player.currentChallenge.op,
-      input
+      input === null ? null : input
     );
-    const move = computeNewPosition(player.currentSquare, roll.steps, roll.direction, this.boardConfig);
+    const finalRoll = auto ? { ...roll, auto: true } : roll;
+    const move = computeNewPosition(player.currentSquare, finalRoll.steps, finalRoll.direction, this.boardConfig);
 
-    player.lastRoll = roll;
+    player.lastRoll = finalRoll;
     player.lastMove = move;
     player.currentSquare = move.targetSquare;
     player.rollsCount += 1;
@@ -147,24 +175,24 @@ export class GameRoom {
 
       await this.broadcastState("game_finished", {
         winner: { id: player.id, name: player.name, avatarUrl: player.avatar ? `/api/avatars/${player.id}` : null },
-        lastMove: { playerId: player.id, move, roll },
+        lastMove: { playerId: player.id, move, roll: finalRoll },
       });
 
       if (this.onGameEnd) {
         this.onGameEnd(player.name, player.rollsCount);
       }
 
-      return { roll, move, finished: true };
+      return { roll: finalRoll, move, finished: true };
     }
 
     await this.broadcastState("player_moved", {
       playerId: player.id,
       playerName: player.name,
-      roll,
+      roll: finalRoll,
       move,
     });
 
-    return { roll, move, finished: false };
+    return { roll: finalRoll, move, finished: false };
   }
 
   getState() {
@@ -173,6 +201,7 @@ export class GameRoom {
       hostId: this.hostId,
       status: this.status,
       turnTimer: this.turnTimer,
+      numberRange: this.numberRange,
       boardConfig: this.boardConfig,
       players: this.players.map((p) => ({
         id: p.id,

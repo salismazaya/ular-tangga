@@ -9,10 +9,36 @@ export interface Challenge {
   op: "+" | "-";
 }
 
+export interface NumberRange {
+  min: number;
+  max: number;
+}
+
+export const DEFAULT_NUMBER_RANGE: NumberRange = { min: -20, max: 20 };
+
+// Batas aman supaya host tidak bisa menyetel rentang ekstrem yang membuat soal mustahil
+const RANGE_LIMIT = 999;
+
+export function sanitizeNumberRange(input: any): NumberRange {
+  const raw = input && typeof input === "object" ? input : {};
+  let min = Number.isFinite(Number(raw.min)) ? Math.trunc(Number(raw.min)) : DEFAULT_NUMBER_RANGE.min;
+  let max = Number.isFinite(Number(raw.max)) ? Math.trunc(Number(raw.max)) : DEFAULT_NUMBER_RANGE.max;
+
+  min = Math.min(RANGE_LIMIT, Math.max(-RANGE_LIMIT, min));
+  max = Math.min(RANGE_LIMIT, Math.max(-RANGE_LIMIT, max));
+
+  if (min > max) {
+    [min, max] = [max, min];
+  }
+
+  return { min, max };
+}
+
 export interface RollResult extends DiceResult {
   screenNumber: number;
   op: "+" | "-";
   userInput: number;
+  auto?: boolean;
 }
 
 export function calculateDice(raw: number): DiceResult {
@@ -28,8 +54,9 @@ export function calculateDice(raw: number): DiceResult {
   return { steps, direction, raw };
 }
 
-export function generateChallenge(): Challenge {
-  const screenNumber = Math.floor(Math.random() * 41) - 20; // -20 s/d 20
+export function generateChallenge(range: NumberRange = DEFAULT_NUMBER_RANGE): Challenge {
+  const { min, max } = sanitizeNumberRange(range);
+  const screenNumber = min + Math.floor(Math.random() * (max - min + 1));
   const op: "+" | "-" = Math.random() < 0.5 ? "+" : "-";
   return { screenNumber, op };
 }
@@ -50,5 +77,24 @@ export function calculateRollWithInput(
     raw,
     steps: dice.steps,
     direction: dice.direction,
+  };
+}
+
+// Batas angka yang masih dianggap lemparan sungguhan; di luar itu lemparan dihitung otomatis (angka 0)
+export const INPUT_LIMIT = 9999;
+
+export function resolveRoll(
+  screenNumber: number,
+  op: "+" | "-",
+  rawInput: any
+): { roll: RollResult; auto: boolean } {
+  // null / undefined / string kosong = pemain tidak sempat menjawab
+  const answered = rawInput !== null && rawInput !== undefined && rawInput !== "";
+  const num = Number(rawInput);
+  const valid = answered && Number.isFinite(num) && Number.isInteger(num) && Math.abs(num) <= INPUT_LIMIT;
+
+  return {
+    roll: calculateRollWithInput(screenNumber, op, valid ? num : 0),
+    auto: !valid,
   };
 }

@@ -47,7 +47,10 @@
       Bagikan kode 4 huruf ini ke temanmu agar mereka bisa bergabung!
     </p>
     <div class="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-slate-800/80 rounded-full border border-slate-700 text-xs text-amber-300 font-bold">
-      ⏱️ Timer Giliran: {game.roomState?.turnTimer || 10} Detik
+    ⏱️ Timer Giliran: {game.roomState?.turnTimer || 10} Detik
+    </div>
+    <div class="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1 bg-slate-800/80 rounded-full border border-slate-700 text-xs text-sky-300 font-bold">
+    🎯 Angka Soal: {game.roomState?.numberRange?.min ?? -20} .. {game.roomState?.numberRange?.max ?? 20}
     </div>
   </div>
 

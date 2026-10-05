@@ -9,7 +9,7 @@ export function initRealtime(code, handlers = {}, playerId = '') {
 
   const cleanCode = String(code).toUpperCase().trim();
 
-  // Jika sudah terhubung ke room yang sama dan socket OPEN, cukup update handler
+  // Socket untuk room yang sama sudah hidup: cukup ganti handler, jangan putus koneksi
   if (activeWs && activeWs.readyState === WebSocket.OPEN && activeCode === cleanCode) {
     currentHandlers = handlers;
     return activeWs;

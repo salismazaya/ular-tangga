@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { serveStatic } from "hono/bun";
 import { roomManager } from "./game/RoomManager";
+import { sanitizeNumberRange } from "./game/MathDice";
 import { initDatabase, getLeaderboard, recordMatchWin, saveAvatarToDb, getAvatarFromDb } from "./db/database";
 import { upgradeWebSocket, websocket, registerSocket, unregisterSocket } from "./realtime";
 
@@ -97,13 +98,14 @@ app.post("/api/rooms", async (c) => {
     const name = String(body.name || "Pemain").trim();
     const avatar = body.avatar ? String(body.avatar) : null;
     const turnTimer = [10, 20, 30].includes(Number(body.turnTimer)) ? Number(body.turnTimer) : 10;
+    const numberRange = sanitizeNumberRange(body.numberRange);
     const playerId = crypto.randomUUID();
 
     if (avatar) {
       storeAvatar(playerId, avatar);
     }
 
-    const room = roomManager.createRoom(name, playerId, avatar, turnTimer);
+    const room = roomManager.createRoom(name, playerId, avatar, turnTimer, numberRange);
 
     room.onGameEnd = (winnerName, rollsCount) => {
       recordMatchWin(room.code, winnerName, rollsCount);
@@ -194,6 +196,23 @@ app.post("/api/rooms/:code/start", async (c) => {
   }
 });
 
+app.post("/api/rooms/:code/range", async (c) => {
+  try {
+    const code = c.req.param("code");
+    const body = await c.req.json().catch(() => ({}));
+    const playerId = String(body.playerId || "");
+    const room = roomManager.getRoom(code);
+
+    if (!room) return c.json({ error: "Room tidak ditemukan" }, 404);
+
+    const numberRange = room.setNumberRange(body.numberRange, playerId);
+    await room.broadcastState("room_updated");
+    return c.json({ success: true, numberRange, state: room.getState() });
+  } catch (err: any) {
+    return c.json({ error: err.message }, 400);
+  }
+});
+
 app.post("/api/rooms/:code/spin", async (c) => {
   try {
     const code = c.req.param("code");
@@ -215,7 +234,7 @@ app.post("/api/rooms/:code/submit", async (c) => {
     const code = c.req.param("code");
     const body = await c.req.json().catch(() => ({}));
     const playerId = String(body.playerId || "");
-    const input = Number(body.input);
+    const input = body.input === null || body.input === undefined ? null : Number(body.input);
     const room = roomManager.getRoom(code);
 
     if (!room) return c.json({ error: "Room tidak ditemukan" }, 404);

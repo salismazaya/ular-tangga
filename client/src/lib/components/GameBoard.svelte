@@ -146,7 +146,7 @@
   });
 </script>
 
-<div class="relative w-full max-w-[620px] aspect-square mx-auto rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-700/80 bg-slate-900 select-none">
+<div class="relative w-auto h-full max-h-full max-w-full aspect-square mx-auto rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border-2 sm:border-4 border-slate-700/80 bg-slate-900 select-none flex items-center justify-center">
   <svg
     viewBox="0 0 1000 1000"
     class="w-full h-full block"
