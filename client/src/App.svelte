@@ -9,9 +9,43 @@
 
   let bgmActive = $state(audio.bgmEnabled);
   let sfxActive = $state(audio.sfxEnabled);
+  let isFullscreen = $state(false);
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      const el = document.documentElement;
+      const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+      if (rfs) {
+        rfs.call(el).then(() => {
+          isFullscreen = true;
+          try {
+            if (screen.orientation && screen.orientation.lock) {
+              screen.orientation.lock('landscape').catch(() => {});
+            }
+          } catch (e) {}
+        }).catch(() => {});
+      }
+    } else {
+      const efs = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+      if (efs) {
+        efs.call(document).then(() => {
+          isFullscreen = false;
+        }).catch(() => {});
+      }
+    }
+  }
 
   onMount(() => {
     game.init();
+    const handleFsChange = () => {
+      isFullscreen = !!document.fullscreenElement;
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+    };
   });
 
   function toggleBgm() {
@@ -60,6 +94,16 @@
           <span>{sfxActive ? '🔊' : '🔇'}</span>
         </button>
 
+        <!-- Fullscreen Button -->
+        <button
+          onclick={toggleFullscreen}
+          title={isFullscreen ? 'Keluar Layar Penuh' : 'Layar Penuh (Landscape)'}
+          class="px-2.5 py-1 text-xs rounded-xl font-bold border transition flex items-center gap-1 {isFullscreen ? 'bg-amber-400 text-slate-950 border-amber-300 font-black' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}"
+        >
+          <span>{isFullscreen ? '↙️' : '⛶'}</span>
+          <span class="hidden sm:inline">{isFullscreen ? 'Normal' : 'Fullscreen'}</span>
+        </button>
+
         <!-- Room & Player Info if in Room -->
         {#if game.roomCode && game.roomState}
           <div class="hidden md:flex items-center gap-2 px-3 py-1 bg-slate-800 rounded-xl border border-slate-700 text-xs">
@@ -95,7 +139,7 @@
   {/if}
 
   <!-- Main View Container -->
-  <div class="flex-1 min-h-0 w-full max-w-7xl mx-auto {game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'p-1 sm:p-2 flex flex-col justify-center overflow-hidden' : 'p-3 sm:p-6 flex flex-col justify-center'}">
+  <div class="flex-1 min-h-0 w-full {game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'p-1 sm:p-2 flex flex-col justify-center overflow-hidden max-w-none' : 'max-w-7xl mx-auto p-3 sm:p-6 flex flex-col justify-center'}">
     {#if !game.roomCode || !game.roomState}
       <!-- Login & Room Selection View -->
       <LoginView />
@@ -103,24 +147,22 @@
       <!-- Room Waiting Lobby -->
       <RoomLobby />
     {:else}
-      <!-- Game Arena (Simultaneous Race - Zero Scroll) -->
-      <div class="w-full h-full flex-1 min-h-0 flex flex-col md:flex-row items-center justify-center gap-2 sm:gap-4 overflow-hidden">
-        <!-- Papan Ular Tangga (Kiri di desktop, Atas di mobile) -->
-        <div class="transition-all duration-300 ease-out w-full md:w-auto flex items-center justify-center p-0.5
-          {game.turnState === 'WAITING_INPUT'
-            ? 'h-[36vh] sm:h-[40vh] max-h-[290px] shrink-0 md:h-full md:max-h-full md:flex-1'
-            : 'flex-1 h-[48vh] sm:h-[55vh] md:h-full max-h-full'}"
-        >
-          <GameBoard
-            players={game.roomState.players || []}
-            myId={game.playerId}
-            pawnPositions={game.pawnPositions}
-            boardConfig={game.roomState.boardConfig}
-          />
+      <!-- Game Arena (Full Screen Landscape: Kiri Board, Kanan Input) -->
+      <div class="w-full h-full flex-1 min-h-0 flex flex-row items-center justify-center gap-2 sm:gap-4 overflow-hidden">
+        <!-- Papan Ular Tangga (KIRI: Bujur Sangkar Maksimal) -->
+        <div class="flex-1 h-full min-h-0 flex items-center justify-center p-0.5 max-h-full">
+          <div class="h-full aspect-square max-h-full max-w-full flex items-center justify-center">
+            <GameBoard
+              players={game.roomState.players || []}
+              myId={game.playerId}
+              pawnPositions={game.pawnPositions}
+              boardConfig={game.roomState.boardConfig}
+            />
+          </div>
         </div>
 
-        <!-- Kontrol Terpadu & Keypad (Kanan di desktop, Bawah di mobile) -->
-        <div class="w-full md:w-[350px] lg:w-[390px] shrink-0 max-h-full flex flex-col justify-center overflow-y-auto no-scrollbar px-1">
+        <!-- Kontrol Terpadu & Keypad (KANAN) -->
+        <div class="w-[280px] sm:w-[320px] md:w-[350px] lg:w-[380px] shrink-0 h-full max-h-full flex flex-col justify-center overflow-y-auto no-scrollbar px-1 py-0.5">
           <RoundHUD
             challenge={game.currentChallenge}
             status={game.roomState.status}
@@ -140,7 +182,7 @@
           />
 
           {#if game.roomState.status === 'FINISHED'}
-            <div class="mt-2 p-2.5 bg-slate-900/95 border-2 border-amber-400/50 rounded-xl text-center space-y-2 shadow-2xl">
+            <div class="mt-2 p-2 bg-slate-900/95 border-2 border-amber-400/50 rounded-xl text-center space-y-1.5 shadow-2xl">
               <div class="text-xs font-black text-amber-300">
                 🎉 Permainan Telah Selesai!
               </div>
@@ -169,6 +211,33 @@
       </div>
     {/if}
   </div>
+
+  <!-- Prompt Putar Layar (Paksa Landscape Full Screen di HP) -->
+  {#if game.roomCode && game.roomState && game.roomState.status !== 'LOBBY'}
+    <div class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center landscape:hidden select-none">
+      <div class="relative w-20 h-20 mb-5 flex items-center justify-center">
+        <div class="absolute inset-0 rounded-full bg-amber-400/10 animate-ping"></div>
+        <div class="text-5xl animate-bounce">📱</div>
+        <div class="absolute -bottom-1 -right-1 text-2xl animate-spin" style="animation-duration: 3s;">🔄</div>
+      </div>
+
+      <h2 class="text-lg sm:text-xl font-black text-white mb-2">
+        Putar HP ke Posisi Landscape
+      </h2>
+      <p class="text-xs sm:text-sm text-slate-300 max-w-xs mb-5 leading-relaxed">
+        Game Ular Tangga berjalan dalam mode <strong class="text-amber-300">Layar Penuh Horizontal</strong> (Papan di Kiri & Keypad di Kanan) untuk pengalaman terbaik!
+      </p>
+
+      <button
+        type="button"
+        onclick={toggleFullscreen}
+        class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 hover:brightness-110 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-xl shadow-amber-400/25 transition flex items-center gap-2"
+      >
+        <span>⛶</span>
+        <span>Aktifkan Layar Penuh (Landscape)</span>
+      </button>
+    </div>
+  {/if}
 
   <!-- Footer (Hanya saat di luar permainan) -->
   {#if !game.roomCode || game.roomState?.status === 'LOBBY'}

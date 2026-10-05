@@ -214,41 +214,28 @@
     </div>
   {/if}
 
-  <!-- Posisi Balapan: Desktop (Grid Rapi) -->
-  <div class="mt-2 pt-2 border-t border-slate-800 text-xs hidden md:block">
-    <div class="font-bold text-slate-400 uppercase tracking-wider text-[11px] mb-1.5">Posisi Balapan Saat Ini:</div>
-    <div class="grid grid-cols-2 gap-1.5">
+  <!-- Posisi Balapan -->
+  <div class="mt-1.5 pt-1.5 border-t border-slate-800 text-xs">
+    <div class="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Posisi Balapan:</div>
+    <div class="grid grid-cols-2 gap-1 max-h-24 overflow-y-auto no-scrollbar">
       {#each sortedPlayers as p, idx}
-        <div class="flex items-center justify-between p-1.5 bg-slate-900/60 rounded-lg border border-slate-800/80">
-          <div class="flex items-center gap-1.5 truncate">
-            <span class="text-slate-500 font-bold text-[10px]">#{idx + 1}</span>
+        <div class="flex items-center justify-between p-1 bg-slate-900/60 rounded-md border border-slate-800/80">
+          <div class="flex items-center gap-1 truncate">
+            <span class="text-slate-500 font-bold text-[9px]">#{idx + 1}</span>
             {#if p.avatarUrl || p.avatar}
-              <img src={p.avatarUrl || p.avatar} alt="Avatar" class="w-4 h-4 rounded-full object-cover shrink-0 border border-sky-400" />
+              <img src={p.avatarUrl || p.avatar} alt="Avatar" class="w-3.5 h-3.5 rounded-full object-cover shrink-0 border border-sky-400" />
             {:else}
-              <span class="w-2 h-2 rounded-full shrink-0" style="background-color: {p.color};"></span>
+              <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: {p.color};"></span>
             {/if}
-            <span class="font-semibold text-slate-200 truncate text-[11px]">{p.name}</span>
+            <span class="font-semibold text-slate-200 truncate text-[10px]">{p.name}</span>
           </div>
-          <span class="font-mono-code font-bold text-amber-300 shrink-0 ml-1 text-xs">
+          <span class="font-mono-code font-bold text-amber-300 shrink-0 ml-1 text-[11px]">
             {p.currentSquare || 1}
           </span>
         </div>
       {/each}
     </div>
   </div>
-
-  <!-- Posisi Balapan: Mobile (Strip Mini Horizontal) -->
-  {#if turnState !== 'WAITING_INPUT'}
-    <div class="mt-1 flex items-center gap-1.5 overflow-x-auto no-scrollbar md:hidden text-[11px] text-slate-400 py-0.5">
-      {#each sortedPlayers as p, idx}
-        <div class="flex items-center gap-1 px-2 py-0.5 bg-slate-900/80 border border-slate-800 rounded-full shrink-0">
-          <span class="text-[10px] text-slate-500 font-bold">#{idx + 1}</span>
-          <span class="text-slate-200 font-medium truncate max-w-[70px]">{p.name}</span>
-          <span class="font-mono-code font-bold text-amber-300 text-xs">{p.currentSquare || 1}</span>
-        </div>
-      {/each}
-    </div>
-  {/if}
 
   <!-- Rentang angka soal (hanya tampil jika bukan PLAYING atau di-toggle) -->
   {#if status !== 'PLAYING'}
