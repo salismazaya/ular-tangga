@@ -48,6 +48,24 @@
     };
   });
 
+  $effect(() => {
+    if (game.roomCode && game.roomState && game.roomState.status !== 'LOBBY') {
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.height = '100%';
+      document.body.style.touchAction = 'none';
+    } else {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+      document.body.style.touchAction = '';
+    }
+  });
+
   function toggleBgm() {
     bgmActive = audio.toggleBgm();
   }
@@ -57,39 +75,39 @@
   }
 </script>
 
-<main class="{game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-screen'} bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-amber-400 selection:text-slate-900">
+<main class="{game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'fixed inset-0 w-screen h-screen max-w-none max-h-none overflow-hidden touch-none select-none overscroll-none' : 'min-h-screen'} bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-amber-400 selection:text-slate-900">
   <!-- Top Navigation Header -->
-  <header class="w-full border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40 px-3 sm:px-4 {game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'py-1 sm:py-1.5' : 'py-2.5'} shrink-0">
-    <div class="max-w-6xl mx-auto flex items-center justify-between">
+  <header class="w-full border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md sticky top-0 z-40 {game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'h-8 sm:h-9 px-2 sm:px-3 py-0.5' : 'px-3 sm:px-4 py-2.5'} shrink-0">
+    <div class="w-full max-w-7xl mx-auto flex items-center justify-between h-full">
       <!-- Title -->
-      <div class="flex items-center gap-2">
-        <span class="text-2xl">🎲</span>
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <span class="text-base sm:text-xl">🎲</span>
         <div>
-          <span class="font-extrabold tracking-tight text-white text-base sm:text-lg">
+          <span class="font-extrabold tracking-tight text-white text-xs sm:text-base">
             Ular Tangga
           </span>
-          <span class="text-xs text-amber-400 font-bold ml-1.5 px-2 py-0.5 bg-amber-400/10 rounded-full border border-amber-400/20">
+          <span class="text-[10px] sm:text-xs text-amber-400 font-bold ml-1 px-1.5 py-0.2 bg-amber-400/10 rounded-full border border-amber-400/20">
             Matematika
           </span>
         </div>
       </div>
 
       <!-- Right Controls: Audio & Player Info -->
-      <div class="flex items-center gap-2 sm:gap-3">
+      <div class="flex items-center gap-1.5 sm:gap-2">
         <!-- Audio Controls -->
         <button
           onclick={toggleBgm}
           title={bgmActive ? 'Matikan Musik' : 'Nyalakan Musik'}
-          class="px-2.5 py-1 text-xs rounded-xl font-bold border transition flex items-center gap-1 {bgmActive ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'}"
+          class="px-2 py-0.5 text-[11px] sm:text-xs rounded-lg font-bold border transition flex items-center gap-1 {bgmActive ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'}"
         >
           <span>🎵</span>
-          <span class="hidden sm:inline">{bgmActive ? 'BGM ON' : 'BGM OFF'}</span>
+          <span class="hidden sm:inline">{bgmActive ? 'BGM' : 'BGM OFF'}</span>
         </button>
 
         <button
           onclick={toggleSfx}
           title={sfxActive ? 'Matikan Suara Efek' : 'Nyalakan Suara Efek'}
-          class="px-2.5 py-1 text-xs rounded-xl font-bold border transition flex items-center gap-1 {sfxActive ? 'bg-sky-500/20 text-sky-300 border-sky-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'}"
+          class="px-2 py-0.5 text-[11px] sm:text-xs rounded-lg font-bold border transition flex items-center gap-1 {sfxActive ? 'bg-sky-500/20 text-sky-300 border-sky-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'}"
         >
           <span>{sfxActive ? '🔊' : '🔇'}</span>
         </button>
@@ -97,8 +115,8 @@
         <!-- Fullscreen Button -->
         <button
           onclick={toggleFullscreen}
-          title={isFullscreen ? 'Keluar Layar Penuh' : 'Layar Penuh (Landscape)'}
-          class="px-2.5 py-1 text-xs rounded-xl font-bold border transition flex items-center gap-1 {isFullscreen ? 'bg-amber-400 text-slate-950 border-amber-300 font-black' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}"
+          title={isFullscreen ? 'Keluar Layar Penuh' : 'Layar Penuh (Fit)'}
+          class="px-2 py-0.5 text-[11px] sm:text-xs rounded-lg font-bold border transition flex items-center gap-1 {isFullscreen ? 'bg-amber-400 text-slate-950 border-amber-300 font-black' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}"
         >
           <span>{isFullscreen ? '↙️' : '⛶'}</span>
           <span class="hidden sm:inline">{isFullscreen ? 'Normal' : 'Fullscreen'}</span>
@@ -106,23 +124,23 @@
 
         <!-- Room & Player Info if in Room -->
         {#if game.roomCode && game.roomState}
-          <div class="hidden md:flex items-center gap-2 px-3 py-1 bg-slate-800 rounded-xl border border-slate-700 text-xs">
+          <div class="hidden sm:flex items-center gap-1 px-2 py-0.5 bg-slate-800 rounded-lg border border-slate-700 text-[11px]">
             <span class="text-slate-400">Room:</span>
             <span class="font-mono-code font-bold text-amber-300">{game.roomCode}</span>
           </div>
 
-          <div class="flex items-center gap-2 px-2.5 py-1 bg-slate-800 rounded-xl border border-slate-700 text-xs">
+          <div class="flex items-center gap-1 px-2 py-0.5 bg-slate-800 rounded-lg border border-slate-700 text-[11px]">
             {#if game.me?.avatar}
-              <img src={game.me.avatar} alt="Avatar" class="w-5 h-5 rounded-full object-cover border border-sky-400" />
+              <img src={game.me.avatar} alt="Avatar" class="w-4 h-4 rounded-full object-cover border border-sky-400" />
             {:else}
-              <span class="w-2.5 h-2.5 rounded-full" style="background-color: {game.me?.color || '#38bdf8'};"></span>
+              <span class="w-2 h-2 rounded-full" style="background-color: {game.me?.color || '#38bdf8'};"></span>
             {/if}
-            <span class="font-bold text-white max-w-[80px] truncate">{game.playerName}</span>
+            <span class="font-bold text-white max-w-[70px] truncate">{game.playerName}</span>
           </div>
 
           <button
             onclick={() => game.leaveRoom()}
-            class="text-xs px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-semibold rounded-xl transition"
+            class="text-[11px] px-2 py-0.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold rounded-lg transition"
           >
             Keluar
           </button>
@@ -147,11 +165,11 @@
       <!-- Room Waiting Lobby -->
       <RoomLobby />
     {:else}
-      <!-- Game Arena (Full Screen Landscape: Kiri Board, Kanan Input) -->
-      <div class="w-full h-full flex-1 min-h-0 flex flex-row items-center justify-center gap-2 sm:gap-4 overflow-hidden">
+      <!-- Game Arena (Full Screen Landscape: Kiri Board, Kanan Input - FIT ZERO SCROLL) -->
+      <div class="w-full h-full flex-1 min-h-0 flex flex-row items-center justify-center gap-2 sm:gap-3 overflow-hidden">
         <!-- Papan Ular Tangga (KIRI: Bujur Sangkar Maksimal) -->
-        <div class="flex-1 h-full min-h-0 flex items-center justify-center p-0.5 max-h-full">
-          <div class="h-full aspect-square max-h-full max-w-full flex items-center justify-center">
+        <div class="flex-1 h-full min-h-0 flex items-center justify-center p-0.5 max-h-full overflow-hidden">
+          <div class="h-full aspect-square max-h-full max-w-full flex items-center justify-center overflow-hidden">
             <GameBoard
               players={game.roomState.players || []}
               myId={game.playerId}
@@ -161,8 +179,8 @@
           </div>
         </div>
 
-        <!-- Kontrol Terpadu & Keypad (KANAN) -->
-        <div class="w-[280px] sm:w-[320px] md:w-[350px] lg:w-[380px] shrink-0 h-full max-h-full flex flex-col justify-center overflow-y-auto no-scrollbar px-1 py-0.5">
+        <!-- Kontrol Terpadu & Keypad (KANAN: Fit 100%, No Scroll) -->
+        <div class="w-[280px] sm:w-[310px] md:w-[340px] shrink-0 h-full max-h-full flex flex-col justify-between overflow-hidden px-1 py-0.5">
           <RoundHUD
             challenge={game.currentChallenge}
             status={game.roomState.status}

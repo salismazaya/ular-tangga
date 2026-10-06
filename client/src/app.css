@@ -3,8 +3,11 @@
 @tailwind utilities;
 
 @layer base {
-  body {
+  html, body {
     font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    overscroll-behavior: none;
+    -webkit-overscroll-behavior: none;
+    touch-action: manipulation;
   }
   
   .font-mono-code {

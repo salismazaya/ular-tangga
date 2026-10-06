@@ -86,15 +86,15 @@
   }
 </script>
 
-<div class="w-full flex flex-col justify-start">
+<div class="w-full h-full flex flex-col justify-between overflow-hidden select-none">
   <!-- Winner Announcement -->
   {#if status === 'FINISHED' && winner}
-    <div class="p-3 bg-emerald-500/20 border border-emerald-500/50 rounded-xl text-center mb-2">
-      <div class="text-[11px] uppercase tracking-wider font-extrabold text-emerald-400">JUARA 1 MENCAPAI KOTAK 100! 🏆</div>
-      <div class="text-xl font-black text-white mt-0.5">{winner.name}</div>
+    <div class="p-2 sm:p-3 bg-emerald-500/20 border border-emerald-500/50 rounded-xl text-center mb-1">
+      <div class="text-[10px] uppercase tracking-wider font-extrabold text-emerald-400">JUARA 1 MENCAPAI KOTAK 100! 🏆</div>
+      <div class="text-lg sm:text-xl font-black text-white mt-0.5">{winner.name}</div>
       <button
         onclick={onLeave}
-        class="mt-2 px-3 py-1.5 bg-slate-900/80 hover:bg-slate-900 text-rose-300 hover:text-rose-200 border border-rose-500/40 font-bold text-xs rounded-lg transition"
+        class="mt-1.5 px-2.5 py-1 bg-slate-900/80 hover:bg-slate-900 text-rose-300 hover:text-rose-200 border border-rose-500/40 font-bold text-xs rounded-lg transition"
       >
         🚪 Keluar ke Menu Utama
       </button>
@@ -102,9 +102,9 @@
   {/if}
 
   <!-- Header Info Ringkas (1 Baris Rapi) -->
-  <div class="flex items-center justify-between pb-1.5 border-b border-slate-800 mb-1.5 text-xs text-slate-300">
-    <div class="flex items-center gap-2">
-      <span class="px-2 py-0.5 bg-sky-500/20 text-sky-300 font-bold rounded-md border border-sky-500/30 text-[10px]">
+  <div class="flex items-center justify-between pb-1 border-b border-slate-800 mb-1 text-xs text-slate-300 shrink-0">
+    <div class="flex items-center gap-1.5">
+      <span class="px-1.5 py-0.2 bg-sky-500/20 text-sky-300 font-bold rounded border border-sky-500/30 text-[9px]">
         Posisi #{myRank}
       </span>
       <span class="text-slate-400 text-xs">
@@ -191,7 +191,7 @@
   {#if latestRoll?.roll}
     {@const r = latestRoll.roll}
     {@const m = latestRoll.move}
-    <div class="mt-1.5 px-2.5 py-1 bg-slate-900/80 border border-slate-700/80 rounded-lg text-[11px] flex items-center justify-between gap-1.5">
+    <div class="mt-1 px-2 py-0.5 bg-slate-900/80 border border-slate-700/80 rounded-lg text-[10px] flex items-center justify-between gap-1 shrink-0">
       <div class="flex items-center gap-1 truncate">
         <span class="text-slate-400 shrink-0">Hasil:</span>
         <span class="font-mono-code font-bold text-white shrink-0">
@@ -200,9 +200,9 @@
       </div>
       <div class="truncate text-right">
         {#if m?.isLadder}
-          <span class="text-amber-400 font-extrabold">🚀 Naik ke {m.targetSquare}!</span>
+          <span class="text-amber-400 font-extrabold">🚀 Naik {m.targetSquare}!</span>
         {:else if m?.isSnake}
-          <span class="text-rose-400 font-extrabold">🐍 Digigit ke {m.targetSquare}!</span>
+          <span class="text-rose-400 font-extrabold">🐍 Digigit {m.targetSquare}!</span>
         {:else if r.direction === 'FORWARD'}
           <span class="text-emerald-400 font-bold">Maju +{r.steps} ➔ {m?.targetSquare}</span>
         {:else if r.direction === 'BACKWARD'}
@@ -214,22 +214,22 @@
     </div>
   {/if}
 
-  <!-- Posisi Balapan -->
-  <div class="mt-1.5 pt-1.5 border-t border-slate-800 text-xs">
-    <div class="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Posisi Balapan:</div>
-    <div class="grid grid-cols-2 gap-1 max-h-24 overflow-y-auto no-scrollbar">
-      {#each sortedPlayers as p, idx}
-        <div class="flex items-center justify-between p-1 bg-slate-900/60 rounded-md border border-slate-800/80">
+  <!-- Posisi Balapan (Compact Fit, No Scroll) -->
+  <div class="mt-1 pt-1 border-t border-slate-800 text-xs shrink-0">
+    <div class="font-bold text-slate-400 uppercase tracking-wider text-[9px] mb-0.5">Posisi Balapan:</div>
+    <div class="grid grid-cols-2 gap-0.5 max-h-16 overflow-hidden">
+      {#each sortedPlayers.slice(0, 4) as p, idx}
+        <div class="flex items-center justify-between p-0.5 px-1 bg-slate-900/60 rounded border border-slate-800/80">
           <div class="flex items-center gap-1 truncate">
             <span class="text-slate-500 font-bold text-[9px]">#{idx + 1}</span>
             {#if p.avatarUrl || p.avatar}
-              <img src={p.avatarUrl || p.avatar} alt="Avatar" class="w-3.5 h-3.5 rounded-full object-cover shrink-0 border border-sky-400" />
+              <img src={p.avatarUrl || p.avatar} alt="Avatar" class="w-3 h-3 rounded-full object-cover shrink-0 border border-sky-400" />
             {:else}
               <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: {p.color};"></span>
             {/if}
-            <span class="font-semibold text-slate-200 truncate text-[10px]">{p.name}</span>
+            <span class="font-semibold text-slate-200 truncate text-[9px]">{p.name}</span>
           </div>
-          <span class="font-mono-code font-bold text-amber-300 shrink-0 ml-1 text-[11px]">
+          <span class="font-mono-code font-bold text-amber-300 shrink-0 ml-1 text-[10px]">
             {p.currentSquare || 1}
           </span>
         </div>
@@ -239,10 +239,10 @@
 
   <!-- Rentang angka soal (hanya tampil jika bukan PLAYING atau di-toggle) -->
   {#if status !== 'PLAYING'}
-    <div class="mt-2">
+    <div class="mt-1 shrink-0">
       <button
         onclick={() => (rangeOpen = !rangeOpen)}
-        class="w-full flex items-center justify-between px-3 py-1.5 bg-slate-900/70 hover:bg-slate-900 border border-slate-700 rounded-lg text-xs font-bold text-slate-200 transition"
+        class="w-full flex items-center justify-between px-2.5 py-1 bg-slate-900/70 hover:bg-slate-900 border border-slate-700 rounded-lg text-xs font-bold text-slate-200 transition"
       >
         <span>Pengaturan Rentang Angka Soal</span>
         <span class="flex items-center gap-2">
@@ -252,7 +252,7 @@
       </button>
 
       {#if rangeOpen}
-        <div class="mt-1.5">
+        <div class="mt-1">
           <RangeSetting
             range={activeRange}
             mode="room"
