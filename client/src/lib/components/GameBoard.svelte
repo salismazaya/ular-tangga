@@ -146,10 +146,11 @@
   });
 </script>
 
-<div class="relative w-auto h-full max-h-full max-w-full aspect-square mx-auto rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border-2 sm:border-4 border-slate-700/80 bg-slate-900 select-none flex items-center justify-center">
+<div class="relative w-full h-full max-h-full max-w-full aspect-square mx-auto rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border-2 sm:border-3 border-slate-700/80 bg-slate-900 select-none flex items-center justify-center p-0.5">
   <svg
-    viewBox="0 0 1000 1000"
-    class="w-full h-full block"
+    viewBox="-12 -12 1024 1024"
+    class="w-full h-full max-w-full max-h-full block aspect-square"
+    style="object-fit: contain;"
     xmlns="http://www.w3.org/2000/svg"
   >
     <defs>
@@ -207,15 +208,15 @@
           class="transition-colors"
         />
 
-        <!-- Nomor Kotak -->
+        <!-- Nomor Kotak (Kontras Tinggi & Jelas) -->
         <text
           x="10"
-          y="24"
-          fill={isStart ? '#6ee7b7' : isFinish ? '#fde047' : '#94a3b8'}
-          font-size="15"
-          font-weight="800"
+          y="25"
+          fill={isStart ? '#34d399' : isFinish ? '#fde047' : '#f1f5f9'}
+          font-size="18"
+          font-weight="900"
           font-family="system-ui, sans-serif"
-          opacity="0.8"
+          opacity="0.95"
         >
           {sq}
         </text>
@@ -224,9 +225,9 @@
         {#if isStart}
           <text
             x="50"
-            y="68"
+            y="72"
             fill="#34d399"
-            font-size="12"
+            font-size="13"
             font-weight="900"
             text-anchor="middle"
             letter-spacing="1"
@@ -236,9 +237,9 @@
         {:else if isFinish}
           <text
             x="50"
-            y="68"
+            y="72"
             fill="#fbbf24"
-            font-size="12"
+            font-size="13"
             font-weight="900"
             text-anchor="middle"
             letter-spacing="1"
