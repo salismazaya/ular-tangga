@@ -1,9 +1,69 @@
+# ── Dependencies ─────────────────────────────────────────────
 node_modules/
-client/node_modules/
-client/dist/
-.env
+*/node_modules/
+.pnp
+.pnp.js
+.bun/
+yarn.lock
+
+# ── Build output ─────────────────────────────────────────────
+dist/
+*/dist/
+build/
+*/build/
+.output/
+.vite/
+*.tsbuildinfo
+
+# ── Database lokal (jangan pernah di-commit) ─────────────────
 game.db
 game.db-journal
 game.db-wal
 game.db-shm
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# ── Environment & secrets ────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.json
+credentials.json
+
+# ── Log & cache ──────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.bun-cache/
+.cache/
+coverage/
+.nyc_output/
+
+# ── Editor & OS ──────────────────────────────────────────────
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Tooling lokal ────────────────────────────────────────────
+.hermes/
+*.local
+*.tmp
+tmp/
