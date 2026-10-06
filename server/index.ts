@@ -265,7 +265,18 @@ app.post("/api/rooms/:code/leave", async (c) => {
   }
 });
 
-// Serve frontend dist
+// Serve frontend dist with strict no-cache for HTML/routes to prevent mobile stale cache
+app.use("/*", async (c, next) => {
+  await next();
+  const path = c.req.path;
+  if (path === "/" || path.endsWith(".html") || !path.includes(".")) {
+    c.header("Cache-Control", "no-cache, no-store, must-revalidate");
+    c.header("Pragma", "no-cache");
+    c.header("Expires", "0");
+  } else if (path.startsWith("/assets/")) {
+    c.header("Cache-Control", "public, max-age=31536000, immutable");
+  }
+});
 app.use("/*", serveStatic({ root: "./client/dist" }));
 app.get("*", serveStatic({ path: "./client/dist/index.html" }));
 

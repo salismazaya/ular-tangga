@@ -52,17 +52,13 @@
     if (game.roomCode && game.roomState && game.roomState.status !== 'LOBBY') {
       document.documentElement.style.overflow = 'hidden';
       document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-      document.body.style.height = '100%';
       document.body.style.touchAction = 'none';
+      document.body.style.overscrollBehavior = 'none';
     } else {
       document.documentElement.style.overflow = '';
       document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-      document.body.style.height = '';
       document.body.style.touchAction = '';
+      document.body.style.overscrollBehavior = '';
     }
   });
 
@@ -77,7 +73,7 @@
 
 <main
   class="{game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'fixed inset-0 w-full h-[100dvh] max-h-[100dvh] overflow-hidden touch-none select-none overscroll-none' : 'min-h-screen'} bg-slate-950 text-slate-100 flex flex-col justify-start selection:bg-amber-400 selection:text-slate-900"
-  style="{game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'height: 100vh; height: 100dvh; max-height: 100dvh; padding-bottom: max(2px, env(safe-area-inset-bottom, 0px)); padding-top: max(2px, env(safe-area-inset-top, 0px)); padding-left: max(4px, env(safe-area-inset-left, 0px)); padding-right: max(4px, env(safe-area-inset-right, 0px));' : ''}"
+  style="{game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'height: 100svh; height: 100dvh; max-height: 100dvh; padding-bottom: max(6px, env(safe-area-inset-bottom, 0px)); padding-top: max(2px, env(safe-area-inset-top, 0px)); padding-left: max(4px, env(safe-area-inset-left, 0px)); padding-right: max(4px, env(safe-area-inset-right, 0px));' : ''}"
 >
   <!-- Top Navigation Header -->
   <header class="w-full border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md sticky top-0 z-40 {game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'h-7 sm:h-8 px-2 sm:px-3 py-0.5' : 'px-3 sm:px-4 py-2.5'} shrink-0">
@@ -172,18 +168,16 @@
       <div class="w-full h-full flex-1 min-h-0 flex flex-row items-center justify-center gap-1.5 sm:gap-3 overflow-hidden">
         <!-- Papan Ular Tangga (KIRI: Selalu 100% Fit & Utuh di Semua Device) -->
         <div class="flex-1 h-full min-h-0 min-w-0 flex items-center justify-center p-0.5 sm:p-1 overflow-hidden">
-          <div class="w-full h-full max-w-full max-h-full flex items-center justify-center">
-            <GameBoard
-              players={game.roomState.players || []}
-              myId={game.playerId}
-              pawnPositions={game.pawnPositions}
-              boardConfig={game.roomState.boardConfig}
-            />
-          </div>
+          <GameBoard
+            players={game.roomState.players || []}
+            myId={game.playerId}
+            pawnPositions={game.pawnPositions}
+            boardConfig={game.roomState.boardConfig}
+          />
         </div>
 
         <!-- Kontrol Terpadu & Keypad (KANAN: Fit 100%, No Scroll) -->
-        <div class="w-[280px] sm:w-[310px] md:w-[340px] shrink-0 h-full max-h-full flex flex-col justify-between overflow-hidden px-1 py-0.5">
+        <div class="w-[260px] sm:w-[290px] md:w-[320px] shrink-0 h-full max-h-full flex flex-col justify-between overflow-hidden px-1 py-0.5">
           <RoundHUD
             challenge={game.currentChallenge}
             status={game.roomState.status}

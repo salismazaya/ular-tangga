@@ -144,13 +144,29 @@
       return 0;
     });
   });
+
+  // Ukur dimensi container secara presisi agar SVG SELALU fit 100% tanpa clipping
+  let containerW = $state(0);
+  let containerH = $state(0);
+  let boardSize = $derived(
+    containerW > 0 && containerH > 0
+      ? Math.max(120, Math.floor(Math.min(containerW, containerH)) - 10)
+      : 0
+  );
 </script>
 
-<div class="w-full h-full max-w-full max-h-full flex items-center justify-center select-none overflow-hidden p-0.5">
+<div
+  bind:clientWidth={containerW}
+  bind:clientHeight={containerH}
+  class="w-full h-full max-w-full max-h-full flex items-center justify-center select-none overflow-hidden p-1"
+>
   <svg
-    viewBox="-30 -30 1060 1060"
-    class="w-full h-full max-w-full max-h-full block aspect-square"
-    style="object-fit: contain;"
+    viewBox="-35 -30 1070 1070"
+    width={boardSize > 0 ? boardSize : undefined}
+    height={boardSize > 0 ? boardSize : undefined}
+    class="block"
+    style="{boardSize > 0 ? `width: ${boardSize}px; height: ${boardSize}px;` : 'height: 100%; max-height: 100%; max-width: 100%; aspect-ratio: 1 / 1;'} margin: auto;"
+    preserveAspectRatio="xMidYMid meet"
     xmlns="http://www.w3.org/2000/svg"
   >
     <defs>
