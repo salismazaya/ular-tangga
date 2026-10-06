@@ -191,7 +191,7 @@
   {#if latestRoll?.roll}
     {@const r = latestRoll.roll}
     {@const m = latestRoll.move}
-    <div class="mt-1 px-2 py-0.5 bg-slate-900/80 border border-slate-700/80 rounded-lg text-[10px] flex items-center justify-between gap-1 shrink-0">
+    <div class="mt-0.5 px-2 py-0.5 bg-slate-900/80 border border-slate-700/80 rounded-lg text-[10px] flex items-center justify-between gap-1 shrink min-h-0 overflow-hidden">
       <div class="flex items-center gap-1 truncate">
         <span class="text-slate-400 shrink-0">Hasil:</span>
         <span class="font-mono-code font-bold text-white shrink-0">
@@ -215,9 +215,9 @@
   {/if}
 
   <!-- Posisi Balapan (Compact Fit, No Scroll) -->
-  <div class="mt-1 pt-1 border-t border-slate-800 text-xs shrink-0">
+  <div class="mt-0.5 pt-0.5 border-t border-slate-800 text-xs shrink min-h-0 overflow-hidden">
     <div class="font-bold text-slate-400 uppercase tracking-wider text-[9px] mb-0.5">Posisi Balapan:</div>
-    <div class="grid grid-cols-2 gap-0.5 max-h-16 overflow-hidden">
+    <div class="grid grid-cols-2 gap-0.5 max-h-14 overflow-hidden">
       {#each sortedPlayers.slice(0, 4) as p, idx}
         <div class="flex items-center justify-between p-0.5 px-1 bg-slate-900/60 rounded border border-slate-800/80">
           <div class="flex items-center gap-1 truncate">

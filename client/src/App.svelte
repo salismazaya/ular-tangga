@@ -77,10 +77,10 @@
 
 <main
   class="{game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'fixed inset-0 w-full h-[100dvh] max-h-[100dvh] overflow-hidden touch-none select-none overscroll-none' : 'min-h-screen'} bg-slate-950 text-slate-100 flex flex-col justify-start selection:bg-amber-400 selection:text-slate-900"
-  style="{game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'padding-bottom: max(4px, env(safe-area-inset-bottom, 0px)); padding-top: env(safe-area-inset-top, 0px); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);' : ''}"
+  style="{game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'height: 100vh; height: 100dvh; max-height: 100dvh; padding-bottom: max(2px, env(safe-area-inset-bottom, 0px)); padding-top: max(2px, env(safe-area-inset-top, 0px)); padding-left: max(4px, env(safe-area-inset-left, 0px)); padding-right: max(4px, env(safe-area-inset-right, 0px));' : ''}"
 >
   <!-- Top Navigation Header -->
-  <header class="w-full border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md sticky top-0 z-40 {game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'h-8 sm:h-9 px-2 sm:px-3 py-0.5' : 'px-3 sm:px-4 py-2.5'} shrink-0">
+  <header class="w-full border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md sticky top-0 z-40 {game.roomCode && game.roomState && game.roomState.status !== 'LOBBY' ? 'h-7 sm:h-8 px-2 sm:px-3 py-0.5' : 'px-3 sm:px-4 py-2.5'} shrink-0">
     <div class="w-full max-w-7xl mx-auto flex items-center justify-between h-full">
       <!-- Title -->
       <div class="flex items-center gap-1.5 sm:gap-2">
@@ -170,9 +170,9 @@
     {:else}
       <!-- Game Arena (Full Screen Landscape: Kiri Board, Kanan Input - FIT ZERO SCROLL) -->
       <div class="w-full h-full flex-1 min-h-0 flex flex-row items-center justify-center gap-1.5 sm:gap-3 overflow-hidden">
-        <!-- Papan Ular Tangga (KIRI: Bujur Sangkar Maksimal, 100% Fit & Never Clipped) -->
-        <div class="flex-1 h-full min-h-0 min-w-0 flex items-center justify-center p-0.5 sm:p-1 max-h-full overflow-hidden">
-          <div class="h-full aspect-square max-h-full max-w-full flex items-center justify-center overflow-hidden">
+        <!-- Papan Ular Tangga (KIRI: Selalu 100% Fit & Utuh di Semua Device) -->
+        <div class="flex-1 h-full min-h-0 min-w-0 flex items-center justify-center p-0.5 sm:p-1 overflow-hidden">
+          <div class="w-full h-full max-w-full max-h-full flex items-center justify-center">
             <GameBoard
               players={game.roomState.players || []}
               myId={game.playerId}

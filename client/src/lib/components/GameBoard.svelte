@@ -146,9 +146,9 @@
   });
 </script>
 
-<div class="relative w-full h-full max-h-full max-w-full aspect-square mx-auto rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border-2 sm:border-3 border-slate-700/80 bg-slate-900 select-none flex items-center justify-center p-0.5">
+<div class="w-full h-full max-w-full max-h-full flex items-center justify-center select-none overflow-hidden p-0.5">
   <svg
-    viewBox="-12 -12 1024 1024"
+    viewBox="-30 -30 1060 1060"
     class="w-full h-full max-w-full max-h-full block aspect-square"
     style="object-fit: contain;"
     xmlns="http://www.w3.org/2000/svg"
@@ -185,6 +185,18 @@
         <feComposite in="SourceGraphic" in2="blur" operator="over" />
       </filter>
     </defs>
+
+    <!-- Background Frame & Border Papan Catur Ular Tangga (Self-Contained Vector) -->
+    <rect
+      x="-20"
+      y="-20"
+      width="1040"
+      height="1040"
+      rx="24"
+      fill="#0b1120"
+      stroke="#334155"
+      stroke-width="4"
+    />
 
     <!-- 1. Grid 100 Kotak -->
     {#each squares as sq}
