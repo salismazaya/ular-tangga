@@ -1,0 +1,18 @@
+services:
+  ular-tangga:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ular-tangga-app
+    restart: unless-stopped
+    ports:
+      - "3456:3456"
+    environment:
+      - PORT=3456
+      - DATABASE_PATH=/app/data/game.db
+      - NODE_ENV=production
+    volumes:
+      - game-data:/app/data
+
+volumes:
+  game-data:

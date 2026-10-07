@@ -6,7 +6,7 @@ import { sanitizeNumberRange } from "./game/MathDice";
 import { initDatabase, getLeaderboard, recordMatchWin, saveAvatarToDb, getAvatarFromDb } from "./db/database";
 import { upgradeWebSocket, websocket, registerSocket, unregisterSocket } from "./realtime";
 
-initDatabase("game.db");
+initDatabase(process.env.DATABASE_PATH || "game.db");
 
 const app = new Hono();
 
